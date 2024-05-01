@@ -1,3 +1,6 @@
+// Copyright 2024 Filipe Coelho <falktx@falktx.com>
+// SPDX-License-Identifier: ISC
+
 #pragma once
 
 #ifdef __cplusplus
@@ -5,13 +8,17 @@
  #include <cstdint>
  #include <cstdio>
 #else
+ #define _GNU_SOURCE
  #include <stdbool.h>
  #include <stddef.h>
  #include <stdint.h>
  #include <stdio.h>
 #endif
 
-#ifndef _WIN32
+#ifdef _WIN32
+ #include <winsock2.h>
+ #include <windows.h>
+#else
  #ifdef __cplusplus
   #include <cerrno>
   #include <cstring>

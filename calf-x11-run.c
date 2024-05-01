@@ -1,4 +1,5 @@
-#include "calf-x11-guis.h"
+#include "src/ipc.h"
+#include "src/ipc_ring.h"
 
 #include <assert.h>
 #include <dlfcn.h>
@@ -7,17 +8,18 @@
 #include <gtk/gtk.h>
 #include <gtk/gtkplug.h>
 #include <lilv/lilv.h>
+#include <lv2/ui/ui.h>
 #include <X11/Xlib.h>
 
 typedef struct {
-    SharedData* shared;
     char* bundlepath;
     void* lib;
     const LV2UI_Descriptor* desc;
     LV2UI_Handle handle;
-} CalfBridge;
+    ipc_client_t* ipc;
+} LV2UI_Runner;
 
-static CalfBridge* bridge_init(const char* const uri)
+static LV2UI_Runner* lv2ui_runner_init(const char* const uri)
 {
     LilvWorld* const world = lilv_world_new();
     lilv_world_load_all(world);
@@ -100,28 +102,34 @@ static CalfBridge* bridge_init(const char* const uri)
 
     const LilvNode* const bundlenode = lilv_plugin_get_bundle_uri(plugin);
 
-    CalfBridge* const bridge = malloc(sizeof(CalfBridge));
-    bridge->bundlepath = lilv_file_uri_parse(lilv_node_as_uri(bundlenode), NULL);
-    bridge->lib = uilib;
-    bridge->desc = uidesc;
-    return bridge;
+    LV2UI_Runner* const runner = malloc(sizeof(LV2UI_Runner));
+    runner->bundlepath = lilv_file_uri_parse(lilv_node_as_uri(bundlenode), NULL);
+    runner->lib = uilib;
+    runner->desc = uidesc;
+    runner->handle = NULL;
+    runner->ipc = NULL;
+
+    return runner;
 
 error:
     lilv_world_free(world);
     return NULL;
 }
 
-static void bridge_close(CalfBridge* const bridge)
+static void bridge_close(LV2UI_Runner* const runner)
 {
-    lilv_free(bridge->bundlepath);
+    lilv_free(runner->bundlepath);
 
-    if (bridge->desc != NULL && bridge->handle != NULL)
-        bridge->desc->cleanup(bridge->handle);
+    if (runner->ipc != NULL)
+        ipc_client_dettach(runner->ipc);
 
-    if (bridge->lib != NULL)
-        dlclose(bridge->lib);
+    if (runner->desc != NULL && runner->handle != NULL)
+        runner->desc->cleanup(runner->handle);
 
-    free(bridge);
+    if (runner->lib != NULL)
+        dlclose(runner->lib);
+
+    free(runner);
 }
 
 static void lv2ui_write_function(LV2UI_Controller controller,
@@ -130,13 +138,13 @@ static void lv2ui_write_function(LV2UI_Controller controller,
                                  uint32_t format,
                                  const void* buffer)
 {
-    CalfBridge* const bridge = controller;
+    LV2UI_Runner* const runner = controller;
 
-    jack_ringbuffer_write(&bridge->shared->rb, (const char*)&portIndex, sizeof(portIndex));
-    jack_ringbuffer_write(&bridge->shared->rb, (const char*)&bufferSize, sizeof(bufferSize));
-    jack_ringbuffer_write(&bridge->shared->rb, (const char*)&format, sizeof(format));
-    jack_ringbuffer_write(&bridge->shared->rb, buffer, bufferSize);
-    sem_post(&bridge->shared->sem);
+    ipc_ring_write(&bridge->shared->rb, &portIndex, sizeof(portIndex));
+    ipc_ring_write(&bridge->shared->rb, &bufferSize, sizeof(bufferSize));
+    ipc_ring_write(&bridge->shared->rb, &format, sizeof(format));
+    ipc_ring_write(&bridge->shared->rb, buffer, bufferSize);
+    ipc_ring_commit(&bridge->shared->rb);
 }
 
 int main(int argc, char* argv[])
@@ -157,9 +165,13 @@ int main(int argc, char* argv[])
     const char* const shm = argc > 2 ? argv[2] : NULL;
     const char* const wid = argc > 3 ? argv[3] : NULL;
 
-    CalfBridge* const bridge = bridge_init(uri);
-    if (bridge == NULL)
+    LV2UI_Runner* const runner = lv2ui_runner_init(uri);
+    if (runner == NULL)
         return 1;
+
+    runner->ipc = ipc_client_attach(shm, 0x7fff, false);
+    if (runner->ipc == NULL)
+        goto fail;
 
     // TODO create shm
     const int winId = 0;
@@ -176,16 +188,15 @@ int main(int argc, char* argv[])
 
     LV2UI_Widget widget = NULL;
     const LV2_Feature* features[] = { NULL };
-    bridge->handle = bridge->desc->instantiate(bridge.desc,
+    runner->handle = runner->desc->instantiate(runner->desc,
                                                uri,
-                                               bundlepath,
+                                               runner->bundlepath,
                                                lv2ui_write_function,
-                                               &widget,
+                                               runner,
                                                &widget,
                                                features);
-    lilv_free(bundlepath);
 
-    if (bridge->handle == NULL)
+    if (runner->handle == NULL)
     {
         fprintf(stderr, "lv2ui failed to initialize, cannot continue!\n");
         goto fail;
@@ -215,6 +226,8 @@ int main(int argc, char* argv[])
     }
 
     gtk_main();
+
+    bridge_close(bridge);
     return 0;
 
 fail:

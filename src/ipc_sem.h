@@ -1,3 +1,6 @@
+// Copyright 2024 Filipe Coelho <falktx@falktx.com>
+// SPDX-License-Identifier: ISC
+
 #pragma once
 
 #ifdef __cplusplus
@@ -33,6 +36,8 @@
  #include <linux/futex.h>
  #include <sys/time.h>
 #elif defined(_WIN32)
+ #include <winsock2.h>
+ #include <windows.h>
 #else
  #include <semaphore.h>
 #endif
