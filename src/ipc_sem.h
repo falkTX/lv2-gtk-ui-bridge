@@ -4,6 +4,7 @@
  #include <cstddef>
  #include <cstdint>
 #else
+ #define _GNU_SOURCE
  #include <stdbool.h>
  #include <stddef.h>
  #include <stdint.h>
@@ -28,8 +29,9 @@
  #endif
 #elif defined(__linux__)
  #include <syscall.h>
- #include <sys/time.h>
+ #include <unistd.h>
  #include <linux/futex.h>
+ #include <sys/time.h>
 #elif defined(_WIN32)
 #else
  #include <semaphore.h>
@@ -77,7 +79,7 @@ void ipc_sem_wake(ipc_sem_t* const sem)
         __ulock_wake(0x1000003, sem, 0);
    #elif defined(__linux__)
     if (! __sync_bool_compare_and_swap(sem, 0, 1))
-        syscall(__NR_futex, sem, FUTEX_WAKE, 1, NULL, NULL, 0);
+        syscall(SYS_futex, sem, FUTEX_WAKE, 1, NULL, NULL, 0);
    #elif defined(_WIN32)
     ReleaseSemaphore(*sem, 1, NULL);
    #else
@@ -98,12 +100,12 @@ bool ipc_sem_wait_secs(ipc_sem_t* const sem, const uint32_t secs)
                 return false;
     }
    #elif defined(__linux__)
-    const timespec timeout = { secs, 0 };
+    const struct timespec timeout = { secs, 0 };
     for (;;)
     {
         if (__sync_bool_compare_and_swap(sem, 1, 0))
             return true;
-        if (syscall(__NR_futex, sem, FUTEX_WAIT, 0, &timeout, NULL, 0) != 0)
+        if (syscall(SYS_futex, sem, FUTEX_WAIT, 0, &timeout, NULL, 0) != 0)
             if (errno != EAGAIN && errno != EINTR)
                 return false;
     }

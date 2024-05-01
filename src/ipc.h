@@ -25,14 +25,58 @@ typedef struct {
     ipc_shared_data_t* data;
 } ipc_client_t;
 
+/*
+ */
 static inline
-bool ipc_server_check(const char name[24])
+bool ipc_server_check(const char* const name)
 {
     return ipc_shm_server_check(name);
 }
 
+/*
+ */
 static inline
-ipc_server_t* ipc_server_create(const char name[24], const uint32_t dataSize, const bool memlock)
+ipc_server_t* ipc_server_create(const char* const name, const uint32_t dataSize, const bool memlock);
+
+/*
+ */
+static inline
+void ipc_server_destroy(ipc_server_t* const server);
+
+/*
+ */
+static inline
+void ipc_server_wake(ipc_server_t* const server);
+
+/*
+ */
+static inline
+bool ipc_server_wait_secs(ipc_server_t* const server, const uint32_t secs);
+
+/*
+ */
+static inline
+ipc_client_t* ipc_client_attach(const char* const name, const uint32_t dataSize, const bool memlock);
+
+/*
+ */
+static inline
+void ipc_client_dettach(ipc_client_t* const client);
+
+/*
+ */
+static inline
+void ipc_client_wake(ipc_client_t* const client);
+
+/*
+ */
+static inline
+bool ipc_client_wait_secs(ipc_client_t* const client, const uint32_t secs);
+
+// --------------------------------------------------------------------------------------------------------------------
+
+static inline
+ipc_server_t* ipc_server_create(const char* const name, const uint32_t dataSize, const bool memlock)
 {
     ipc_server_t* const server = (ipc_server_t*)calloc(1, sizeof(ipc_server_t));
     if (server == NULL)
@@ -74,18 +118,6 @@ ipc_server_t* ipc_server_create(const char name[24], const uint32_t dataSize, co
 }
 
 static inline
-void ipc_server_wake(ipc_server_t* const server)
-{
-    return ipc_sem_wake(&server->data->sem1);
-}
-
-static inline
-bool ipc_server_wait_secs(ipc_server_t* const server, const uint32_t secs)
-{
-    return ipc_sem_wait_secs(&server->data->sem2, secs);
-}
-
-static inline
 void ipc_server_destroy(ipc_server_t* const server)
 {
     ipc_sem_destroy(&server->data->sem1);
@@ -94,8 +126,10 @@ void ipc_server_destroy(ipc_server_t* const server)
     free(server);
 }
 
+// --------------------------------------------------------------------------------------------------------------------
+
 static inline
-ipc_client_t* ipc_client_attach(const char name[24], const uint32_t dataSize, const bool memlock)
+ipc_client_t* ipc_client_attach(const char* const name, const uint32_t dataSize, const bool memlock)
 {
     ipc_client_t* const client = (ipc_client_t*)calloc(1, sizeof(ipc_client_t));
 
@@ -124,6 +158,20 @@ void ipc_client_dettach(ipc_client_t* const client)
     free(client);
 }
 
+// --------------------------------------------------------------------------------------------------------------------
+
+static inline
+void ipc_server_wake(ipc_server_t* const server)
+{
+    return ipc_sem_wake(&server->data->sem1);
+}
+
+static inline
+bool ipc_server_wait_secs(ipc_server_t* const server, const uint32_t secs)
+{
+    return ipc_sem_wait_secs(&server->data->sem2, secs);
+}
+
 static inline
 void ipc_client_wake(ipc_client_t* const client)
 {
@@ -135,3 +183,5 @@ bool ipc_client_wait_secs(ipc_client_t* const client, const uint32_t secs)
 {
     return ipc_sem_wait_secs(&client->data->sem1, secs);
 }
+
+// --------------------------------------------------------------------------------------------------------------------

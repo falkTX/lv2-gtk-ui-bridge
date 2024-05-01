@@ -15,5 +15,5 @@ calf-x11-guis.lv2/calf-x11-guis.so: calf-x11-guis.c
 calf-x11-guis.lv2/calf-x11-run: calf-x11-run.c
 	$(CC) $^ $(CFLAGS) $(LDFLAGS) $(shell pkg-config --cflags --libs gtk+-x11-2.0 x11) -Wno-deprecated-declarations -o $@
 
-test: src/test.c src/ipc.h
+test: src/test.c src/*.h
 	$(CC) $< $(CFLAGS) $(LDFLAGS) -o $@

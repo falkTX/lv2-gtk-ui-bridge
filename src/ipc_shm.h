@@ -48,7 +48,7 @@ typedef struct {
 } ipc_shm_client_t;
 
 static inline
-void __ipc_shm_name(char shmname[IPC_SHM_NAME_SIZE], const char name[24])
+void __ipc_shm_name(char shmname[IPC_SHM_NAME_SIZE], const char* const name)
 {
    #ifdef _WIN32
     snprintf(shmname, IPC_SHM_NAME_SIZE - 1, "Local\\", name);
@@ -59,7 +59,7 @@ void __ipc_shm_name(char shmname[IPC_SHM_NAME_SIZE], const char name[24])
 }
 
 static inline
-bool ipc_shm_server_check(const char name[24])
+bool ipc_shm_server_check(const char* const name)
 {
     char shmname[IPC_SHM_NAME_SIZE];
     __ipc_shm_name(shmname, name);
@@ -83,7 +83,7 @@ bool ipc_shm_server_check(const char name[24])
 }
 
 static inline
-bool ipc_shm_server_create(ipc_shm_server_t* const shm, const char name[24], const uint32_t size, const bool memlock)
+bool ipc_shm_server_create(ipc_shm_server_t* const shm, const char* const name, const uint32_t size, const bool memlock)
 {
     char shmname[IPC_SHM_NAME_SIZE] = {};
     __ipc_shm_name(shmname, name);
@@ -171,7 +171,7 @@ void ipc_shm_server_destroy(ipc_shm_server_t* const shm)
 }
 
 static inline
-bool ipc_shm_client_attach(ipc_shm_client_t* const shm, const char name[24], const uint32_t size, const bool memlock)
+bool ipc_shm_client_attach(ipc_shm_client_t* const shm, const char* const name, const uint32_t size, const bool memlock)
 {
     char shmname[IPC_SHM_NAME_SIZE] = {};
     __ipc_shm_name(shmname, name);
