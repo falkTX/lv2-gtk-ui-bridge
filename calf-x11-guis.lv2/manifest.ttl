@@ -1,0 +1,11 @@
+@prefix lv2: <http://lv2plug.in/ns/lv2core#> .
+@prefix ui:  <http://lv2plug.in/ns/extensions/ui#> .
+@prefix xui: <http://calf.sourceforge.net/plugins/gui/x11-gui> .
+
+xui:
+    a ui:X11UI ;
+    lv2:requiredFeature ui:parent ;
+    ui:binary <calf-x11-guis.so> .
+
+<http://calf.sourceforge.net/plugins/Compressor>
+    lv2:ui xui: .
