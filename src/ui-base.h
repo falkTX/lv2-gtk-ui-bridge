@@ -9,6 +9,7 @@ const uint32_t rbsize = 0x7fff;
 typedef enum {
     lv2ui_message_null,
     lv2ui_message_port_event,
-    lv2ui_message_touch_event,
+    lv2ui_message_urid_map_req,
+    lv2ui_message_urid_map_resp,
     lv2ui_message_window_id,
 } LV2UI_Bridge_Message_Type;

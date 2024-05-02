@@ -20,9 +20,16 @@ typedef struct {
 } LV2UI_Object;
 
 typedef struct {
+    char** uris;
+    const char* waiting_uri;
+    uint32_t max_urid;
+} LV2UI_URIs;
+
+typedef struct {
     ipc_client_t* ipc;
     LV2UI_Object* uiobj;
     LV2UI_Handle uihandle;
+    LV2UI_URIs uiuris;
 } LV2UI_Bridge;
 
 static LV2UI_Object* lv2ui_object_load(const char* const uri)
@@ -149,6 +156,30 @@ static void lv2ui_object_unload(LV2UI_Object* const uiobj)
     free(uiobj);
 }
 
+static void lv2ui_uris_add(LV2UI_URIs* const uiuris, const uint32_t urid, const char* const uri)
+{
+    if (urid >= uiuris->max_urid)
+    {
+        uiuris->uris = realloc(uiuris->uris, sizeof(char*) * (urid + 1));
+
+        for (uint32_t i = uiuris->max_urid; i < urid + 1; ++i)
+            uiuris->uris[i] = NULL;
+
+        uiuris->max_urid = urid + 1;
+    }
+
+    assert(uiuris->uris[urid] == NULL);
+    uiuris->uris[urid] = strdup(uri);
+}
+
+static void lv2ui_uris_cleanup(LV2UI_URIs* const uiuris)
+{
+    for (uint32_t i = 0; i < uiuris->max_urid; ++i)
+        free(uiuris->uris[i]);
+
+    free(uiuris);
+}
+
 static void lv2ui_write_function(LV2UI_Controller controller,
                                  uint32_t port_index,
                                  uint32_t buffer_size,
@@ -165,13 +196,6 @@ static void lv2ui_write_function(LV2UI_Controller controller,
     ipc_client_write(bridge->ipc, buffer, buffer_size);
     ipc_client_commit(bridge->ipc);
 }
-
-/* TODO
-static LV2_URID lv2ui_uri_map(const LV2_URID_Map_Handle handle, const char* const uri)
-{
-    return 1;
-}
-*/
 
 static int lv2ui_idle(void* const ptr)
 {
@@ -211,6 +235,32 @@ static int lv2ui_idle(void* const ptr)
                     continue;
                 }
             }
+            else if (msg_type == lv2ui_message_urid_map_resp &&
+                ipc_client_read(bridge->ipc, &port_index, sizeof(uint32_t)) &&
+                ipc_client_read(bridge->ipc, &buffer_size, sizeof(uint32_t)))
+            {
+                if (buffer_size > size)
+                {
+                    size = buffer_size;
+                    buffer = realloc(buffer, buffer_size);
+
+                    if (buffer == NULL)
+                    {
+                        fprintf(stderr, "lv2ui client out of memory, abort!\n");
+                        abort();
+                    }
+                }
+
+                if (ipc_client_read(bridge->ipc, buffer, buffer_size))
+                {
+                    lv2ui_uris_add(&bridge->uiuris, port_index, buffer);
+
+                    if (bridge->uiuris.waiting_uri != NULL && strcmp(bridge->uiuris.waiting_uri, buffer) == 0)
+                        bridge->uiuris.waiting_uri = NULL;
+
+                    continue;
+                }
+            }
         }
 
         fprintf(stderr, "lv2ui client ringbuffer data race, abort!\n");
@@ -219,6 +269,37 @@ static int lv2ui_idle(void* const ptr)
 
     free(buffer);
 
+    return 0;
+}
+
+static LV2_URID lv2ui_uri_map(const LV2_URID_Map_Handle handle, const char* const uri)
+{
+    LV2UI_Bridge* const bridge = handle;
+
+    for (uint32_t i = 0; i < bridge->uiuris.max_urid; ++i)
+    {
+        if (bridge->uiuris.uris[i] != NULL && strcmp(bridge->uiuris.uris[i], uri) == 0)
+            return i;
+    }
+
+    bridge->uiuris.waiting_uri = uri;
+
+    const uint32_t msg_type = lv2ui_message_urid_map_req;
+    const uint32_t buffer_size = strlen(uri) + 1;
+    ipc_client_write(bridge->ipc, &msg_type, sizeof(uint32_t)) &&
+    ipc_client_write(bridge->ipc, &buffer_size, sizeof(uint32_t)) &&
+    ipc_client_write(bridge->ipc, uri, buffer_size);
+    ipc_client_commit(bridge->ipc);
+
+    while (ipc_client_wait_secs(bridge->ipc, 1) && lv2ui_idle(bridge) == 0 && bridge->uiuris.waiting_uri != NULL) {}
+
+    for (uint32_t i = 0; i < bridge->uiuris.max_urid; ++i)
+    {
+        if (bridge->uiuris.uris[i] != NULL && strcmp(bridge->uiuris.uris[i], uri) == 0)
+            return i;
+    }
+
+    fprintf(stderr, "lv2ui client uri map failed\n");
     return 0;
 }
 
@@ -243,18 +324,15 @@ int main(int argc, char* argv[])
         return 1;
     }
 
-    // argc != 2 &&
-    if ( argc != 4)
+    if (argc != 2 && argc != 4)
     {
         fprintf(stderr, "usage: %s <lv2-uri> [shm-access-key] [x11-ui-parent]\n", argv[0]);
         return 1;
     }
 
     const char* const uri = argv[1];
-    const char* const shm = argc > 2 ? argv[2] : NULL;
-    const char* const wid = argc > 3 ? argv[3] : NULL;
-    assert(shm != NULL);
-    assert(wid != NULL);
+    const char* const shm = argc == 4 ? argv[2] : NULL;
+    const char* const wid = argc == 4 ? argv[3] : NULL;
 
     LV2UI_Bridge bridge = { 0 };
 
@@ -290,12 +368,10 @@ int main(int argc, char* argv[])
     }
 
     LV2UI_Widget widget = NULL;
-    /* TODO
     LV2_URID_Map urid_map = { .handle = &bridge, .map = lv2ui_uri_map };
     const LV2_Feature feature_urid_map = { .URI = LV2_URID__map, .data = &urid_map };
-    */
     const LV2_Feature* features[] = {
-        // &feature_urid_map,
+        &feature_urid_map,
         NULL
     };
     bridge.uihandle = bridge.uiobj->desc->instantiate(bridge.uiobj->desc,
@@ -348,8 +424,6 @@ int main(int argc, char* argv[])
             ipc_client_commit(bridge.ipc);
         }
     }
-    // NOTE: in case of shm but no wid, we dont show the UI
-    // can happen in case of host using LV2 idle + show interface without parent feature
     else if (shm == NULL)
     {
         g_signal_connect(G_OBJECT(window), "destroy", G_CALLBACK(gtk_main_quit), NULL);
@@ -370,7 +444,6 @@ int main(int argc, char* argv[])
     {
         ipc_client_t* const ipc = bridge.ipc;
         bridge.ipc = NULL;
-        // TODO ipc_client_signal(); ??
         pthread_join(thread, NULL);
         ipc_client_dettach(ipc);
     }
@@ -378,6 +451,7 @@ int main(int argc, char* argv[])
     bridge.uiobj->desc->cleanup(bridge.uihandle);
 
 fail:
+    lv2ui_uris_cleanup(&bridge.uiuris);
     lv2ui_object_unload(bridge.uiobj);
     return 0;
 }

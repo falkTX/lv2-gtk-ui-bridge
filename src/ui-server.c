@@ -3,10 +3,13 @@
 
 #include "ui-base.h"
 
+#include <lv2/urid/urid.h>
+
 typedef struct {
     ipc_server_t* ipc;
     LV2UI_Write_Function write_function;
     LV2UI_Controller controller;
+    LV2_URID_Map* urid_map;
     uint64_t window_id;
     bool window_ok;
 } LV2UI_Bridge;
@@ -28,17 +31,23 @@ static LV2UI_Handle lv2ui_instantiate(const LV2UI_Descriptor* const descriptor,
     // verify host features
 
     void* parent = NULL;
+    LV2_URID_Map* urid_map = NULL;
+
     for (int i=0; features[i] != NULL; ++i)
     {
         if (strcmp(features[i]->URI, LV2_UI__parent) == 0)
-        {
             parent = features[i]->data;
-            break;
-        }
+        else if (strcmp(features[i]->URI, LV2_URID__map) == 0)
+            urid_map = features[i]->data;
     }
     if (parent == NULL)
     {
         fprintf(stderr, "ui:parent feature missing, cannot continue!\n");
+        return NULL;
+    }
+    if (urid_map == NULL || urid_map->map == NULL)
+    {
+        fprintf(stderr, "urid:map feature missing, cannot continue!\n");
         return NULL;
     }
 
@@ -48,6 +57,7 @@ static LV2UI_Handle lv2ui_instantiate(const LV2UI_Descriptor* const descriptor,
     LV2UI_Bridge* const bridge = malloc(sizeof(LV2UI_Bridge));
     bridge->write_function = write_function;
     bridge->controller = controller;
+    bridge->urid_map = urid_map;
     bridge->window_id = 0;
     bridge->window_ok = false;
 
@@ -100,7 +110,7 @@ static LV2UI_Handle lv2ui_instantiate(const LV2UI_Descriptor* const descriptor,
     snprintf(wid, sizeof(wid) - 1, "%lu", (unsigned long)parent);
 
     // ----------------------------------------------------------------------------------------------------------------
-    // start IPC server
+    // unset known problematic env vars
 
     char* old_ld_preload = getenv("LD_PRELOAD");
     if (old_ld_preload != NULL)
@@ -116,11 +126,16 @@ static LV2UI_Handle lv2ui_instantiate(const LV2UI_Descriptor* const descriptor,
         unsetenv("LD_LIBRARY_PATH");
     }
 
+    // ----------------------------------------------------------------------------------------------------------------
+    // start IPC server
+
     const char* args[] = { bridge_tool_path, plugin_uri, shm_name, wid, NULL };
 
     bridge->ipc = ipc_server_start(args, shm_name, rbsize);
 
+    // ----------------------------------------------------------------------------------------------------------------
     // cleanup
+
     if (old_ld_preload != NULL)
     {
         setenv("LD_PRELOAD", old_ld_preload, 1);
@@ -221,6 +236,35 @@ static int lv2ui_idle(const LV2UI_Handle ui)
                 {
                     if (bridge->write_function != NULL)
                         bridge->write_function(bridge->controller, port_index, buffer_size, port_protocol, buffer);
+
+                    continue;
+                }
+            }
+            else if (msg_type == lv2ui_message_urid_map_req &&
+                     ipc_server_read(bridge->ipc, &buffer_size, sizeof(uint32_t)))
+            {
+                if (buffer_size > size)
+                {
+                    size = buffer_size;
+                    buffer = realloc(buffer, buffer_size);
+
+                    if (buffer == NULL)
+                    {
+                        fprintf(stderr, "lv2ui server out of memory, abort!\n");
+                        return 1;
+                    }
+                }
+
+                if (ipc_server_read(bridge->ipc, buffer, buffer_size))
+                {
+                    const uint32_t urid = bridge->urid_map->map(bridge->urid_map->handle, buffer);
+
+                    const uint32_t msg_type = lv2ui_message_urid_map_resp;
+                    ipc_server_write(bridge->ipc, &msg_type, sizeof(uint32_t)) &&
+                    ipc_server_write(bridge->ipc, &urid, sizeof(uint32_t)) &&
+                    ipc_server_write(bridge->ipc, &buffer_size, sizeof(uint32_t)) &&
+                    ipc_server_write(bridge->ipc, buffer, buffer_size);
+                    ipc_server_commit(bridge->ipc);
 
                     continue;
                 }

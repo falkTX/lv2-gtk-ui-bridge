@@ -106,7 +106,7 @@ void ipc_sem_wake(ipc_sem_t* const sem)
         __ulock_wake(0x1000003, sem, 0);
    #elif defined(__linux__)
     if (__sync_bool_compare_and_swap(sem, 0, 1))
-        syscall(__NR_futex, sem, FUTEX_WAKE, 1, NULL, NULL, 0);
+        syscall(SYS_futex, sem, FUTEX_WAKE, 1, NULL, NULL, 0);
    #elif defined(_WIN32)
     ReleaseSemaphore(*sem, 1, NULL);
    #else
@@ -132,7 +132,7 @@ bool ipc_sem_wait_secs(ipc_sem_t* const sem, const uint32_t secs)
     {
         if (__sync_bool_compare_and_swap(sem, 1, 0))
             return true;
-        if (syscall(__NR_futex, sem, FUTEX_WAIT, 0, &timeout, NULL, 0) != 0)
+        if (syscall(SYS_futex, sem, FUTEX_WAIT, 0, &timeout, NULL, 0) != 0)
             if (errno != EAGAIN && errno != EINTR)
                 return false;
     }
