@@ -1,8 +1,7 @@
 // Copyright 2024 Filipe Coelho <falktx@falktx.com>
 // SPDX-License-Identifier: ISC
 
-#include "ipc/ipc.h"
-#include <lv2/ui/ui.h>
+#include "ui-base.h"
 
 typedef struct {
     ipc_server_t* ipc;
@@ -97,8 +96,6 @@ static LV2UI_Handle lv2ui_instantiate(const LV2UI_Descriptor* const descriptor,
     // ----------------------------------------------------------------------------------------------------------------
     // start IPC server
 
-    const uint32_t rbsize = 0x7fff;
-
     const char* args[] = { bridge_tool_path, plugin_uri, shm_name, wid, NULL };
 
     bridge->ipc = ipc_server_start(args, shm_name, rbsize);
@@ -107,20 +104,34 @@ static LV2UI_Handle lv2ui_instantiate(const LV2UI_Descriptor* const descriptor,
 
     if (bridge->ipc == NULL)
     {
-        fprintf(stderr, "[lv2-gtk-ui-bridge] ipc_server_create failed\n");
+        fprintf(stderr, "[lv2-gtk-ui-bridge] ipc_server_start failed\n");
         free(bridge);
         return NULL;
     }
 
-    ipc_server_wait_secs(bridge->ipc, 5);
-    int task;
-    ipc_server_read(bridge->ipc, &task, sizeof(task));
-    assert(task == 2);
-    unsigned long winId;
-    ipc_server_read(bridge->ipc, &winId, sizeof(winId));
+    // ----------------------------------------------------------------------------------------------------------------
+    // if we have a parent wait for first message, giving window id to host
 
-    *widget = (LV2UI_Widget)winId;
-    return bridge;
+    if (parent == NULL)
+    {
+        *widget = NULL;
+        return bridge;
+    }
+
+    uint32_t msg_type;
+    uint64_t window_id;
+    if (ipc_server_wait_secs(bridge->ipc, 5) &&
+        ipc_server_read(bridge->ipc, &msg_type, sizeof(uint32_t)) && msg_type == lv2ui_message_window_id &&
+        ipc_server_read(bridge->ipc, &window_id, sizeof(uint64_t)))
+    {
+        *widget = (LV2UI_Widget)window_id;
+        return bridge;
+    }
+
+    fprintf(stderr, "[lv2-gtk-ui-bridge] ipc_server_create failed\n");
+    ipc_server_stop(bridge->ipc);
+    free(bridge);
+    return NULL;
 }
 
 static void lv2ui_cleanup(const LV2UI_Handle ui)
@@ -135,6 +146,8 @@ static void lv2ui_port_event(LV2UI_Handle ui, uint32_t port_index, uint32_t buff
 {
     LV2UI_Bridge* const bridge = ui;
 
+    const uint32_t msg_type = lv2ui_message_port_event;
+    ipc_server_write(bridge->ipc, &msg_type, sizeof(uint32_t)) &&
     ipc_server_write(bridge->ipc, &port_index, sizeof(uint32_t)) &&
     ipc_server_write(bridge->ipc, &buffer_size, sizeof(uint32_t)) &&
     ipc_server_write(bridge->ipc, &format, sizeof(uint32_t)) &&
@@ -151,29 +164,35 @@ static int lv2ui_idle(const LV2UI_Handle ui)
 
     while (ipc_server_read_size(bridge->ipc) != 0)
     {
+        uint32_t msg_type = lv2ui_message_null;
         uint32_t port_index, buffer_size, port_protocol;
-        if (ipc_server_read(bridge->ipc, &port_index, sizeof(uint32_t)) &&
-            ipc_server_read(bridge->ipc, &buffer_size, sizeof(uint32_t)) &&
-            ipc_server_read(bridge->ipc, &port_protocol, sizeof(uint32_t)))
+
+        if (ipc_server_read(bridge->ipc, &msg_type, sizeof(uint32_t)))
         {
-            if (buffer_size > size)
+            if (msg_type == lv2ui_message_port_event &&
+                ipc_server_read(bridge->ipc, &port_index, sizeof(uint32_t)) &&
+                ipc_server_read(bridge->ipc, &buffer_size, sizeof(uint32_t)) &&
+                ipc_server_read(bridge->ipc, &port_protocol, sizeof(uint32_t)))
             {
-                size = buffer_size;
-                buffer = realloc(buffer, buffer_size);
-
-                if (buffer == NULL)
+                if (buffer_size > size)
                 {
-                    fprintf(stderr, "lv2ui out of memory, abort!\n");
-                    return 1;
+                    size = buffer_size;
+                    buffer = realloc(buffer, buffer_size);
+
+                    if (buffer == NULL)
+                    {
+                        fprintf(stderr, "lv2ui out of memory, abort!\n");
+                        return 1;
+                    }
                 }
-            }
 
-            if (ipc_server_read(bridge->ipc, buffer, buffer_size))
-            {
-                if (bridge->write_function != NULL)
-                    bridge->write_function(bridge->controller, port_index, buffer_size, port_protocol, buffer);
+                if (ipc_server_read(bridge->ipc, buffer, buffer_size))
+                {
+                    if (bridge->write_function != NULL)
+                        bridge->write_function(bridge->controller, port_index, buffer_size, port_protocol, buffer);
 
-                continue;
+                    continue;
+                }
             }
         }
 
@@ -218,7 +237,7 @@ const LV2UI_Descriptor* lv2ui_descriptor(const uint32_t index)
     switch (index)
     {
     case 0: return &descriptor_gtk2;
-    case 1: return &descriptor_gtk2;
+    case 1: return &descriptor_gtk3;
     default: return NULL;
     }
 }

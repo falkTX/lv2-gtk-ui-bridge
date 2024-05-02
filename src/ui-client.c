@@ -1,16 +1,16 @@
-#include "ipc/ipc.h"
+// Copyright 2024 Filipe Coelho <falktx@falktx.com>
+// SPDX-License-Identifier: ISC
+
+#include "ui-base.h"
 
 #include <dlfcn.h>
 #include <pthread.h>
 
 #include <gtk/gtk.h>
-#include <stdio.h>
 #ifdef UI_GTK3
 #include <gtk/gtkx.h>
 #endif
-// #include <gtk/gtkplug.h>
 #include <lilv/lilv.h>
-#include <lv2/ui/ui.h>
 #include <X11/Xlib.h>
 
 typedef struct {
@@ -144,6 +144,8 @@ static void lv2ui_write_function(LV2UI_Controller controller,
 {
     LV2UI_Bridge* const bridge = controller;
 
+    const uint32_t msg_type = lv2ui_message_port_event;
+    ipc_client_write(bridge->ipc, &msg_type, sizeof(uint32_t)) &&
     ipc_client_write(bridge->ipc, &port_index, sizeof(uint32_t)) &&
     ipc_client_write(bridge->ipc, &buffer_size, sizeof(uint32_t)) &&
     ipc_client_write(bridge->ipc, &format, sizeof(uint32_t)) &&
@@ -160,29 +162,34 @@ static int lv2ui_idle(void* const ptr)
 
     while (ipc_client_read_size(bridge->ipc) != 0)
     {
-        uint32_t port_index, buffer_size, format;
-        if (ipc_client_read(bridge->ipc, &port_index, sizeof(uint32_t)) &&
-            ipc_client_read(bridge->ipc, &buffer_size, sizeof(uint32_t)) &&
-            ipc_client_read(bridge->ipc, &format, sizeof(uint32_t)))
+        uint32_t msg_type = lv2ui_message_null;
+        if (ipc_server_read(bridge->ipc, &msg_type, sizeof(uint32_t)))
         {
-            if (buffer_size > size)
+            uint32_t port_index, buffer_size, format;
+            if (msg_type == lv2ui_message_port_event &&
+                ipc_client_read(bridge->ipc, &port_index, sizeof(uint32_t)) &&
+                ipc_client_read(bridge->ipc, &buffer_size, sizeof(uint32_t)) &&
+                ipc_client_read(bridge->ipc, &format, sizeof(uint32_t)))
             {
-                size = buffer_size;
-                buffer = realloc(buffer, buffer_size);
-
-                if (buffer == NULL)
+                if (buffer_size > size)
                 {
-                    fprintf(stderr, "lv2ui out of memory, abort!\n");
-                    abort();
+                    size = buffer_size;
+                    buffer = realloc(buffer, buffer_size);
+
+                    if (buffer == NULL)
+                    {
+                        fprintf(stderr, "lv2ui out of memory, abort!\n");
+                        abort();
+                    }
                 }
-            }
 
-            if (ipc_client_read(bridge->ipc, buffer, buffer_size))
-            {
-                if (bridge->uiobj->desc->port_event != NULL)
-                    bridge->uiobj->desc->port_event(bridge->uihandle, port_index, buffer_size, format, buffer);
+                if (ipc_client_read(bridge->ipc, buffer, buffer_size))
+                {
+                    if (bridge->uiobj->desc->port_event != NULL)
+                        bridge->uiobj->desc->port_event(bridge->uihandle, port_index, buffer_size, format, buffer);
 
-                continue;
+                    continue;
+                }
             }
         }
 
@@ -240,8 +247,6 @@ int main(int argc, char* argv[])
 
     if (shm != NULL)
     {
-        const uint32_t rbsize = 0x7fff;
-    
         bridge.ipc = ipc_client_attach(shm, rbsize);
         if (bridge.ipc == NULL)
             goto fail;
@@ -306,11 +311,13 @@ int main(int argc, char* argv[])
             XCloseDisplay(display);
         }
 
+        // pass child window id to server side
         if (bridge.ipc != NULL)
         {
-            const int task = 2;
-            ipc_client_write(bridge.ipc, &task, sizeof(task));
-            ipc_client_write(bridge.ipc, &win, sizeof(win));
+            const uint32_t msg_type = lv2ui_message_window_id;
+            const uint64_t window_id = win;
+            ipc_client_write(bridge.ipc, &msg_type, sizeof(uint32_t)) &&
+            ipc_client_write(bridge.ipc, &window_id, sizeof(uint64_t));
             ipc_client_commit(bridge.ipc);
         }
     }
