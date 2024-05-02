@@ -41,6 +41,15 @@ typedef struct {
 static inline
 ipc_proc_t* ipc_proc_start(const char* const args[])
 {
+   #ifdef _WIN32
+   #else
+    if (access(args[0], X_OK) != 0)
+    {
+        fprintf(stderr, "[ipc] cannot exec: %s\n", strerror(errno));
+        return NULL;
+    }
+   #endif
+
     ipc_proc_t* const proc = (ipc_proc_t*)calloc(1, sizeof(ipc_proc_t));
     if (proc == NULL)
     {

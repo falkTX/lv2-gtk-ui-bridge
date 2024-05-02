@@ -7,13 +7,13 @@
 
 int main()
 {
-    const char* args[] = { "echoxxa", "hahahaha", NULL };
+    const char* args[] = { "/usr/bin/echo", "hahahaha", NULL };
     ipc_process_t* const proc = ipc_process_start(args, "tst1", 32);
     assert(proc);
     sleep(1);
     assert(!ipc_proc_is_running(proc->proc));
     ipc_process_stop(proc);
-    
+
     // const char* const name = "test1";
     // assert(ipc_server_check(name));
     // ipc_server_t* server = ipc_server_create(name, 32, true);
