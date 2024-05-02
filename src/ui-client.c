@@ -44,8 +44,12 @@ static LV2UI_Object* lv2ui_object_load(const char* const uri)
     if (uis == NULL)
         goto error;
 
-    LilvNode* const gtk2uinode = lilv_new_uri(world, "http://lv2plug.in/ns/extensions/ui#GtkUI");
-    if (gtk2uinode == NULL)
+   #ifdef UI_GTK3
+    LilvNode* const gtkuinode = lilv_new_uri(world, LV2_UI__Gtk3UI);
+   #else
+    LilvNode* const gtkuinode = lilv_new_uri(world, LV2_UI__GtkUI);
+   #endif
+    if (gtkuinode == NULL)
         goto error;
 
     char* bundlepath;
@@ -56,7 +60,7 @@ static LV2UI_Object* lv2ui_object_load(const char* const uri)
     {
         const LilvUI* const ui = lilv_uis_get(uis, i);
 
-        if (! lilv_ui_is_a(ui, gtk2uinode))
+        if (! lilv_ui_is_a(ui, gtkuinode))
             continue;
 
         const LilvNode* const bundlenode = lilv_ui_get_binary_uri(ui);
