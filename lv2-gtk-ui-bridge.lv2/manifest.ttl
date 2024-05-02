@@ -169,6 +169,57 @@ gtk3:
 <http://calf.sourceforge.net/plugins/XOver4Band>
     ui:ui gtk2: .
 
+<http://eq10q.sourceforge.net/bassup>
+    ui:ui gtk2: .
+
+<http://eq10q.sourceforge.net/compressor>
+    ui:ui gtk2: .
+
+<http://eq10q.sourceforge.net/compressor_sc>
+    ui:ui gtk2: .
+
+<http://eq10q.sourceforge.net/compressor_stereo>
+    ui:ui gtk2: .
+
+<http://eq10q.sourceforge.net/compressor_stereo_sc>
+    ui:ui gtk2: .
+
+<http://eq10q.sourceforge.net/eq/eq10qm>
+    ui:ui gtk2: .
+
+<http://eq10q.sourceforge.net/eq/eq10qs>
+    ui:ui gtk2: .
+
+<http://eq10q.sourceforge.net/eq/eq1qm>
+    ui:ui gtk2: .
+
+<http://eq10q.sourceforge.net/eq/eq1qs>
+    ui:ui gtk2: .
+
+<http://eq10q.sourceforge.net/eq/eq4qm>
+    ui:ui gtk2: .
+
+<http://eq10q.sourceforge.net/eq/eq4qs>
+    ui:ui gtk2: .
+
+<http://eq10q.sourceforge.net/eq/eq6qm>
+    ui:ui gtk2: .
+
+<http://eq10q.sourceforge.net/eq/eq6qs>
+    ui:ui gtk2: .
+
+<http://eq10q.sourceforge.net/gate>
+    ui:ui gtk2: .
+
+<http://eq10q.sourceforge.net/gate_stereo>
+    ui:ui gtk2: .
+
+<http://eq10q.sourceforge.net/matrix_lr2ms>
+    ui:ui gtk2: .
+
+<http://eq10q.sourceforge.net/matrix_ms2lr>
+    ui:ui gtk2: .
+
 <http://invadarecords.com/plugins/lv2/compressor/mono>
     ui:ui gtk2: .
 

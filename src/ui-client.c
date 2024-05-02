@@ -48,6 +48,7 @@ static LV2UI_Object* lv2ui_object_load(const char* const uri)
     if (gtk2uinode == NULL)
         goto error;
 
+    char* bundlepath;
     void* uilib = NULL;
     const LV2UI_Descriptor* uidesc = NULL;
 
@@ -62,11 +63,11 @@ static LV2UI_Object* lv2ui_object_load(const char* const uri)
         char* const binarypath = lilv_file_uri_parse(lilv_node_as_uri(bundlenode), NULL);
 
         uilib = dlopen(binarypath, RTLD_NOW);
-        lilv_free(binarypath);
 
         if (uilib == NULL)
         {
             fprintf(stderr, "could not load UI binary: %s\n", dlerror());
+            lilv_free(binarypath);
             continue;
         }
 
@@ -100,7 +101,15 @@ static LV2UI_Object* lv2ui_object_load(const char* const uri)
         }
 
         if (uidesc != NULL)
+        {
+            bundlepath = binarypath;
+            char* const sep = strrchr(bundlepath, '/');
+            if (sep != NULL)
+                sep[1] = '\0';
             break;
+        }
+
+        lilv_free(binarypath);
 
         if (uilib != NULL)
         {
@@ -112,12 +121,12 @@ static LV2UI_Object* lv2ui_object_load(const char* const uri)
     if (uilib == NULL || uidesc == NULL)
         goto error;
 
-    const LilvNode* const bundlenode = lilv_plugin_get_bundle_uri(plugin);
-
     LV2UI_Object* const uiobj = malloc(sizeof(LV2UI_Object));
-    uiobj->bundlepath = lilv_file_uri_parse(lilv_node_as_uri(bundlenode), NULL);
+    uiobj->bundlepath = bundlepath;
     uiobj->lib = uilib;
     uiobj->desc = uidesc;
+
+    fprintf(stderr, "bundlepath is '%s'\n", bundlepath);
 
     return uiobj;
 
@@ -152,6 +161,13 @@ static void lv2ui_write_function(LV2UI_Controller controller,
     ipc_client_write(bridge->ipc, buffer, buffer_size);
     ipc_client_commit(bridge->ipc);
 }
+
+/* TODO
+static LV2_URID lv2ui_uri_map(const LV2_URID_Map_Handle handle, const char* const uri)
+{
+    return 1;
+}
+*/
 
 static int lv2ui_idle(void* const ptr)
 {
@@ -270,7 +286,14 @@ int main(int argc, char* argv[])
     }
 
     LV2UI_Widget widget = NULL;
-    const LV2_Feature* features[] = { NULL };
+    /* TODO
+    LV2_URID_Map urid_map = { .handle = &bridge, .map = lv2ui_uri_map };
+    const LV2_Feature feature_urid_map = { .URI = LV2_URID__map, .data = &urid_map };
+    */
+    const LV2_Feature* features[] = {
+        // &feature_urid_map,
+        NULL
+    };
     bridge.uihandle = bridge.uiobj->desc->instantiate(bridge.uiobj->desc,
                                                       uri,
                                                       bridge.uiobj->bundlepath,
