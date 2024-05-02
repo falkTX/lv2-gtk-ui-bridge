@@ -7,6 +7,8 @@ This increases the compatibility of such UIs to hosts that do not support the le
 Because Gtk2/3 can often conflict with host function symbols (e.g. a Gtk4 host can't load Gtk3 libraries) the UI is loaded in a separate process.  
 This means it is not possible to support LV2 instance access nor LV2 data access, which some UIs use for fancy fast graphs.
 
+![Screenshot](Screenshot.png)
+
 Dependencies
 ------------
 
