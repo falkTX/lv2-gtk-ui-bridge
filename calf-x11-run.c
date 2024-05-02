@@ -21,8 +21,6 @@ typedef struct {
 
 typedef struct {
     ipc_client_t* ipc;
-    ipc_ring_t* ring_recv;
-    ipc_ring_t* ring_send;
     LV2UI_Object* uiobj;
     LV2UI_Handle uihandle;
 } LV2UI_Bridge;
@@ -146,12 +144,12 @@ static void lv2ui_write_function(LV2UI_Controller controller,
 {
     LV2UI_Bridge* const bridge = controller;
 
-    ipc_ring_write(bridge->ring_send, &port_index, sizeof(uint32_t)) &&
-    ipc_ring_write(bridge->ring_send, &buffer_size, sizeof(uint32_t)) &&
-    ipc_ring_write(bridge->ring_send, &format, sizeof(uint32_t)) &&
-    ipc_ring_write(bridge->ring_send, buffer, buffer_size);
+    ipc_client_write(bridge->ipc, &port_index, sizeof(uint32_t)) &&
+    ipc_client_write(bridge->ipc, &buffer_size, sizeof(uint32_t)) &&
+    ipc_client_write(bridge->ipc, &format, sizeof(uint32_t)) &&
+    ipc_client_write(bridge->ipc, buffer, buffer_size);
 
-    if (ipc_ring_commit(bridge->ring_send))
+    if (ipc_client_commit(bridge->ipc))
         ipc_client_wake(bridge->ipc);
 }
 
@@ -162,12 +160,12 @@ static int lv2ui_idle(void* const ptr)
     uint32_t size = 0;
     void* buffer = NULL;
 
-    while (ipc_ring_read_size(bridge->ring_recv) != 0)
+    while (ipc_client_read_size(bridge->ipc) != 0)
     {
         uint32_t port_index, buffer_size, format;
-        if (ipc_ring_read(bridge->ring_recv, &port_index, sizeof(uint32_t)) &&
-            ipc_ring_read(bridge->ring_recv, &buffer_size, sizeof(uint32_t)) &&
-            ipc_ring_read(bridge->ring_recv, &format, sizeof(uint32_t)))
+        if (ipc_client_read(bridge->ipc, &port_index, sizeof(uint32_t)) &&
+            ipc_client_read(bridge->ipc, &buffer_size, sizeof(uint32_t)) &&
+            ipc_client_read(bridge->ipc, &format, sizeof(uint32_t)))
         {
             if (buffer_size > size)
             {
@@ -181,7 +179,7 @@ static int lv2ui_idle(void* const ptr)
                 }
             }
 
-            if (ipc_ring_read(bridge->ring_recv, buffer, buffer_size))
+            if (ipc_client_read(bridge->ipc, buffer, buffer_size))
             {
                 if (bridge->uiobj->desc->port_event != NULL)
                     bridge->uiobj->desc->port_event(bridge->uihandle, port_index, buffer_size, format, buffer);
@@ -242,18 +240,10 @@ int main(int argc, char* argv[])
     if (shm != NULL)
     {
         const uint32_t rbsize = 0x7fff;
-        const uint32_t shared_data_size = (sizeof(ipc_ring_t) + rbsize) * 2;
     
-        bridge.ipc = ipc_client_attach(shm, shared_data_size, false);
+        bridge.ipc = ipc_client_attach(shm, rbsize);
         if (bridge.ipc == NULL)
             goto fail;
-
-        bridge.ring_recv = (ipc_ring_t*)bridge.ipc->data->data;
-        ipc_ring_init(bridge.ring_recv, rbsize);
-
-        bridge.ring_send = (ipc_ring_t*)(bridge.ipc->data->data + sizeof(ipc_ring_t) + rbsize);
-        ipc_ring_init(bridge.ring_send, rbsize);
-
     }
 
     // FIXME hexa create shm

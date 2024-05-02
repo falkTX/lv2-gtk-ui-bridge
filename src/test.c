@@ -8,11 +8,11 @@
 int main()
 {
     const char* args[] = { "/usr/bin/echo", "hahahaha", NULL };
-    ipc_process_t* const proc = ipc_process_start(args, "tst1", 32);
-    assert(proc);
+    ipc_server_t* const server = ipc_server_start(args, "tst1", 32);
+    assert(server);
     sleep(1);
-    assert(!ipc_proc_is_running(proc->proc));
-    ipc_process_stop(proc);
+    assert(!ipc_server_is_running(server));
+    ipc_server_stop(server);
 
     // const char* const name = "test1";
     // assert(ipc_server_check(name));
