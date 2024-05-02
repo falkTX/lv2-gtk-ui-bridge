@@ -34,14 +34,14 @@ void ipc_ring_init(ipc_ring_t* ring, uint32_t size)
 }
 
 static inline
-uint32_t ipc_ring_read_size(const ipc_ring_t* ring)
+uint32_t ipc_ring_read_size(const ipc_ring_t* const ring)
 {
     const uint32_t wrap = ring->head >= ring->tail ? 0 : ring->size;
     return wrap + ring->head - ring->tail;
 }
 
 static inline
-uint32_t ipc_ring_write_size(const ipc_ring_t* ring)
+uint32_t ipc_ring_write_size(const ipc_ring_t* const ring)
 {
     const uint32_t wrap = ring->tail > ring->wrtn ? 0 : ring->size;
     return wrap + ring->tail - ring->wrtn - 1;
@@ -154,6 +154,7 @@ bool ipc_ring_write(ipc_ring_t* ring, const void* src, uint32_t size)
     }
 
     ring->wrtn = writeto;
+    ring->flags &= ~ipc_ring_flag_error_writing;
     return true;
 }
 

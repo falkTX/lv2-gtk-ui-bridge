@@ -1,17 +1,17 @@
-#include "src/ipc.h"
+#include "ipc/ipc.h"
 
-#include <assert.h>
 #include <dlfcn.h>
-#include <stdint.h>
-#include <stdio.h>
 #include <pthread.h>
 
 #include <gtk/gtk.h>
-#include <gtk/gtkplug.h>
+#include <stdio.h>
+#ifdef UI_GTK3
+#include <gtk/gtkx.h>
+#endif
+// #include <gtk/gtkplug.h>
 #include <lilv/lilv.h>
 #include <lv2/ui/ui.h>
 #include <X11/Xlib.h>
-#include <sys/types.h>
 
 typedef struct {
     char* bundlepath;
@@ -148,9 +148,7 @@ static void lv2ui_write_function(LV2UI_Controller controller,
     ipc_client_write(bridge->ipc, &buffer_size, sizeof(uint32_t)) &&
     ipc_client_write(bridge->ipc, &format, sizeof(uint32_t)) &&
     ipc_client_write(bridge->ipc, buffer, buffer_size);
-
-    if (ipc_client_commit(bridge->ipc))
-        ipc_client_wake(bridge->ipc);
+    ipc_client_commit(bridge->ipc);
 }
 
 static int lv2ui_idle(void* const ptr)
@@ -218,7 +216,8 @@ int main(int argc, char* argv[])
         return 1;
     }
 
-    if (argc != 2 && argc != 4)
+    // argc != 2 &&
+    if ( argc != 4)
     {
         fprintf(stderr, "usage: %s <lv2-uri> [shm-access-key] [x11-ui-parent]\n", argv[0]);
         return 1;
@@ -227,6 +226,8 @@ int main(int argc, char* argv[])
     const char* const uri = argv[1];
     const char* const shm = argc > 2 ? argv[2] : NULL;
     const char* const wid = argc > 3 ? argv[3] : NULL;
+    assert(shm != NULL);
+    assert(wid != NULL);
 
     LV2UI_Bridge bridge = { 0 };
 
@@ -244,6 +245,9 @@ int main(int argc, char* argv[])
         bridge.ipc = ipc_client_attach(shm, rbsize);
         if (bridge.ipc == NULL)
             goto fail;
+
+        assert(bridge.ipc->ring_send->size != 0);
+        assert(bridge.ipc->ring_recv->size != 0);
     }
 
     // FIXME hexa create shm
@@ -292,14 +296,22 @@ int main(int argc, char* argv[])
     {
         gtk_widget_show_all(window);
 
+        const Window win = gtk_plug_get_id(GTK_PLUG(window));
+
         Display* const display = XOpenDisplay(NULL);
         if (display != NULL)
         {
-            const Window win = gtk_plug_get_id(GTK_PLUG(window));
-            // XResizeWindow(display, win, 1200, 600);
             XMapWindow(display, win);
             XFlush(display);
             XCloseDisplay(display);
+        }
+
+        if (bridge.ipc != NULL)
+        {
+            const int task = 2;
+            ipc_client_write(bridge.ipc, &task, sizeof(task));
+            ipc_client_write(bridge.ipc, &win, sizeof(win));
+            ipc_client_commit(bridge.ipc);
         }
     }
     // NOTE: in case of shm but no wid, we dont show the UI
@@ -313,7 +325,6 @@ int main(int argc, char* argv[])
     pthread_t thread = { 0 };
     if (bridge.ipc != NULL)
     {
-        ipc_client_wake(bridge.ipc);
         pthread_create(&thread, NULL, lv2ui_thread_run, &bridge);
     }
 

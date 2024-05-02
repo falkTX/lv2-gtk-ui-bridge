@@ -67,11 +67,6 @@ bool ipc_server_commit(ipc_server_t* server);
 /*
  */
 static inline
-void ipc_server_wake(ipc_server_t* server);
-
-/*
- */
-static inline
 bool ipc_server_wait_secs(ipc_server_t* server, uint32_t secs);
 
 // --------------------------------------------------------------------------------------------------------------------
@@ -100,11 +95,6 @@ bool ipc_client_write(ipc_client_t* client, const void* src, uint32_t size);
  */
 static inline
 bool ipc_client_commit(ipc_client_t* client);
-
-/*
- */
-static inline
-void ipc_client_wake(ipc_client_t* client);
 
 /*
  */
@@ -174,7 +164,15 @@ ipc_server_t* ipc_server_start(const char* args[], const char* const name, const
         return NULL;
     }
 
-    return server;
+    for (int i = 0; i < 5 && ipc_proc_is_running(server->proc); ++i)
+    {
+        if (ipc_sem_wait_secs(&shared_data->sem_server, 1))
+            return server;
+    }
+
+    fprintf(stderr, "[ipc] client side failed to start\n");
+    ipc_server_stop(server);
+    return NULL;
 }
 
 static inline
@@ -196,6 +194,12 @@ bool ipc_server_is_running(ipc_server_t* const server)
 }
 
 static inline
+uint32_t ipc_server_read_size(ipc_server_t* const server)
+{
+    return ipc_ring_read_size(server->ring_recv);
+}
+
+static inline
 bool ipc_server_read(ipc_server_t* const server, void* const dst, const uint32_t size)
 {
     return ipc_ring_read(server->ring_recv, dst, size);
@@ -210,14 +214,14 @@ bool ipc_server_write(ipc_server_t* const server, const void* const src, const u
 static inline
 bool ipc_server_commit(ipc_server_t* const server)
 {
-    return ipc_ring_commit(server->ring_send);
-}
+    if (ipc_ring_commit(server->ring_send))
+    {
+        ipc_shared_data_t* const shared_data = (ipc_shared_data_t*)server->shm.ptr;
+        ipc_sem_wake(&shared_data->sem_server);
+        return true;
+    }
 
-static inline
-void ipc_server_wake(ipc_server_t* const server)
-{
-    ipc_shared_data_t* const shared_data = (ipc_shared_data_t*)server->shm.ptr;
-    return ipc_sem_wake(&shared_data->sem_server);
+    return false;
 }
 
 static inline
@@ -250,8 +254,11 @@ ipc_client_t* ipc_client_attach(const char* const name, const uint32_t rbsize)
     }
 
     ipc_shared_data_t* const shared_data = (ipc_shared_data_t*)client->shm.ptr;
-    client->ring_send = (ipc_ring_t*)shared_data->rbdata;
-    client->ring_recv = (ipc_ring_t*)(shared_data->rbdata + sizeof(ipc_ring_t) + rbsize);
+    client->ring_recv = (ipc_ring_t*)shared_data->rbdata;
+    client->ring_send = (ipc_ring_t*)(shared_data->rbdata + sizeof(ipc_ring_t) + rbsize);
+
+    // notify server we started ok
+    ipc_sem_wake(&shared_data->sem_server);
 
     return client;
 }
@@ -284,14 +291,14 @@ bool ipc_client_write(ipc_client_t* const client, const void* const src, const u
 static inline
 bool ipc_client_commit(ipc_client_t* const client)
 {
-    return ipc_ring_commit(client->ring_send);
-}
+    if (ipc_ring_commit(client->ring_send))
+    {
+        ipc_shared_data_t* const shared_data = (ipc_shared_data_t*)client->shm.ptr;
+        ipc_sem_wake(&shared_data->sem_client);
+        return true;
+    }
 
-static inline
-void ipc_client_wake(ipc_client_t* const client)
-{
-    ipc_shared_data_t* const shared_data = (ipc_shared_data_t*)client->shm.ptr;
-    return ipc_sem_wake(&shared_data->sem_client);
+    return false;
 }
 
 static inline

@@ -1,19 +1,22 @@
 
 CFLAGS += -std=c11
+CFLAGS += $(shell pkg-config --cflags lv2)
 
-CFLAGS  += $(shell pkg-config --cflags lilv-0 lv2) -fPIC
-LDFLAGS += $(shell pkg-config --libs lilv-0 lv2)
-LDFLAGS += -Wl,-no-undefined -ldl
+TARGETS = lv2-gtk-ui-bridge.lv2/lv2-gtk-ui-bridge.so
 
-all: build
+TARGETS += lv2-gtk-ui-bridge.lv2/lv2-gtk2-ui-bridge
+TARGETS += lv2-gtk-ui-bridge.lv2/lv2-gtk3-ui-bridge
 
-build: calf-x11-guis.lv2/calf-x11-guis.so calf-x11-guis.lv2/calf-x11-run
+all: $(TARGETS)
 
-calf-x11-guis.lv2/calf-x11-guis.so: calf-x11-guis.c
-	$(CC) $^ $(CFLAGS) $(LDFLAGS) -shared -o $@
+lv2-gtk-ui-bridge.lv2/lv2-gtk-ui-bridge.so: src/ui-server.c src/ipc/*.h
+	$(CC) $< $(CFLAGS) $(LDFLAGS) -fPIC -shared -Wl,-no-undefined -o $@
 
-calf-x11-guis.lv2/calf-x11-run: calf-x11-run.c
-	$(CC) $^ $(CFLAGS) $(LDFLAGS) $(shell pkg-config --cflags --libs gtk+-x11-2.0 x11) -Wno-deprecated-declarations -o $@
+lv2-gtk-ui-bridge.lv2/lv2-gtk2-ui-bridge: src/ui-client.c src/ipc/*.h
+	$(CC) $< $(CFLAGS) -DUI_GTK2 $(LDFLAGS) $(shell pkg-config --cflags --libs lilv-0 gtk+-x11-2.0 x11) -Wno-deprecated-declarations -o $@
+
+lv2-gtk-ui-bridge.lv2/lv2-gtk3-ui-bridge: src/ui-client.c src/ipc/*.h
+	$(CC) $< $(CFLAGS) -DUI_GTK3 $(LDFLAGS) $(shell pkg-config --cflags --libs lilv-0 gtk+-3.0 x11) -Wno-deprecated-declarations -o $@
 
 test: src/test.c src/*.h
 	$(CC) $< $(CFLAGS) $(LDFLAGS) -o $@
