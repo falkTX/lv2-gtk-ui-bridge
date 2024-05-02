@@ -133,15 +133,15 @@ bool ipc_shm_server_create(ipc_shm_server_t* const shm, const char* const name, 
    #ifdef MAP_LOCKED
     if (memlock)
     {
-        shm->ptr = mmap(NULL, size, PROT_READ|PROT_WRITE, MAP_SHARED|MAP_LOCKED, shm->fd, 0);
+        shm->ptr = (uint8_t*)mmap(NULL, size, PROT_READ|PROT_WRITE, MAP_SHARED|MAP_LOCKED, shm->fd, 0);
 
         if (shm->ptr == NULL || shm->ptr == MAP_FAILED)
-            shm->ptr = mmap(NULL, size, PROT_READ|PROT_WRITE, MAP_SHARED, shm->fd, 0);
+            shm->ptr = (uint8_t*)mmap(NULL, size, PROT_READ|PROT_WRITE, MAP_SHARED, shm->fd, 0);
     }
     else
    #endif
     {
-        shm->ptr = mmap(NULL, size, PROT_READ|PROT_WRITE, MAP_SHARED, shm->fd, 0);
+        shm->ptr = (uint8_t*)mmap(NULL, size, PROT_READ|PROT_WRITE, MAP_SHARED, shm->fd, 0);
     }
 
     if (shm->ptr == NULL || shm->ptr == MAP_FAILED)
@@ -212,15 +212,15 @@ bool ipc_shm_client_attach(ipc_shm_client_t* const shm, const char* const name, 
    #ifdef MAP_LOCKED
     if (memlock)
     {
-        shm->ptr = mmap(NULL, size, PROT_READ|PROT_WRITE, MAP_SHARED|MAP_LOCKED, shm->fd, 0);
+        shm->ptr = (uint8_t*)mmap(NULL, size, PROT_READ|PROT_WRITE, MAP_SHARED|MAP_LOCKED, shm->fd, 0);
 
         if (shm->ptr == NULL || shm->ptr == MAP_FAILED)
-            shm->ptr = mmap(NULL, size, PROT_READ|PROT_WRITE, MAP_SHARED, shm->fd, 0);
+            shm->ptr = (uint8_t*)mmap(NULL, size, PROT_READ|PROT_WRITE, MAP_SHARED, shm->fd, 0);
     }
     else
    #endif
     {
-        shm->ptr = mmap(NULL, size, PROT_READ|PROT_WRITE, MAP_SHARED, shm->fd, 0);
+        shm->ptr = (uint8_t*)mmap(NULL, size, PROT_READ|PROT_WRITE, MAP_SHARED, shm->fd, 0);
     }
 
     if (shm->ptr == NULL || shm->ptr == MAP_FAILED)
