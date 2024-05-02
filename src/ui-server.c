@@ -96,9 +96,36 @@ static LV2UI_Handle lv2ui_instantiate(const LV2UI_Descriptor* const descriptor,
     // ----------------------------------------------------------------------------------------------------------------
     // start IPC server
 
+    char* old_ld_preload = getenv("LD_PRELOAD");
+    if (old_ld_preload != NULL)
+    {
+        old_ld_preload = strdup(old_ld_preload);
+        unsetenv("LD_PRELOAD");
+    }
+
+    char* old_ld_library_path = getenv("LD_LIBRARY_PATH");
+    if (old_ld_library_path != NULL)
+    {
+        old_ld_library_path = strdup(old_ld_library_path);
+        unsetenv("LD_LIBRARY_PATH");
+    }
+
     const char* args[] = { bridge_tool_path, plugin_uri, shm_name, wid, NULL };
 
     bridge->ipc = ipc_server_start(args, shm_name, rbsize);
+
+    // cleanup
+    if (old_ld_preload != NULL)
+    {
+        setenv("LD_PRELOAD", old_ld_preload, 1);
+        free(old_ld_preload);
+    }
+
+    if (old_ld_library_path != NULL)
+    {
+        setenv("LD_LIBRARY_PATH", old_ld_library_path, 1);
+        free(old_ld_library_path);
+    }
 
     free(bridge_tool_path);
 

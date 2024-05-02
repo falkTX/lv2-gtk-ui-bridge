@@ -44,7 +44,7 @@
  #include <semaphore.h>
 #endif
 
-#if defined(__APPLE__) || defined(__linux__) && 0
+#if defined(__APPLE__) || (defined(__linux__) && 0)
 typedef int32_t ipc_sem_t;
 #elif defined(_WIN32)
 typedef HANDLE ipc_sem_t;
@@ -55,7 +55,7 @@ typedef sem_t ipc_sem_t;
 static inline
 bool ipc_sem_create(ipc_sem_t* const sem)
 {
-   #if defined(__APPLE__) || defined(__linux__)
+   #if defined(__APPLE__) || (defined(__linux__) && 0)
     // nothing to do
     return true;
    #elif defined(_WIN32)
@@ -72,7 +72,7 @@ bool ipc_sem_create(ipc_sem_t* const sem)
 static inline
 void ipc_sem_destroy(ipc_sem_t* const sem)
 {
-   #if defined(__APPLE__) || defined(__linux__)
+   #if defined(__APPLE__) || (defined(__linux__) && 0)
     // nothing to do
    #elif defined(_WIN32)
     CloseHandle(*sem);
@@ -87,7 +87,7 @@ void ipc_sem_wake(ipc_sem_t* const sem)
    #if defined(__APPLE__)
     if (! __sync_bool_compare_and_swap(sem, 0, 1))
         __ulock_wake(0x1000003, sem, 0);
-   #elif defined(__linux__)
+   #elif defined(__linux__) && 0
     if (! __sync_bool_compare_and_swap(sem, 0, 1))
         syscall(SYS_futex, sem, FUTEX_WAKE, 1, NULL, NULL, 0);
    #elif defined(_WIN32)
@@ -109,7 +109,7 @@ bool ipc_sem_wait_secs(ipc_sem_t* const sem, const uint32_t secs)
             if (errno != EAGAIN && errno != EINTR)
                 return false;
     }
-   #elif defined(__linux__)
+   #elif defined(__linux__) && 0
     const struct timespec timeout = { secs, 0 };
     for (;;)
     {

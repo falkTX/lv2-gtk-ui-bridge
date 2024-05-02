@@ -163,7 +163,7 @@ static int lv2ui_idle(void* const ptr)
     while (ipc_client_read_size(bridge->ipc) != 0)
     {
         uint32_t msg_type = lv2ui_message_null;
-        if (ipc_server_read(bridge->ipc, &msg_type, sizeof(uint32_t)))
+        if (ipc_client_read(bridge->ipc, &msg_type, sizeof(uint32_t)))
         {
             uint32_t port_index, buffer_size, format;
             if (msg_type == lv2ui_message_port_event &&
