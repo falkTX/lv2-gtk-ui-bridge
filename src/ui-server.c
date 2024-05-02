@@ -7,7 +7,11 @@ typedef struct {
     ipc_server_t* ipc;
     LV2UI_Write_Function write_function;
     LV2UI_Controller controller;
+    uint64_t window_id;
+    bool window_ok;
 } LV2UI_Bridge;
+
+static int lv2ui_idle(LV2UI_Handle ui);
 
 static LV2UI_Handle lv2ui_instantiate(const LV2UI_Descriptor* const descriptor,
                                       const char* const plugin_uri,
@@ -44,6 +48,8 @@ static LV2UI_Handle lv2ui_instantiate(const LV2UI_Descriptor* const descriptor,
     LV2UI_Bridge* const bridge = malloc(sizeof(LV2UI_Bridge));
     bridge->write_function = write_function;
     bridge->controller = controller;
+    bridge->window_id = 0;
+    bridge->window_ok = false;
 
     // ----------------------------------------------------------------------------------------------------------------
     // path to bridge helper
@@ -145,17 +151,15 @@ static LV2UI_Handle lv2ui_instantiate(const LV2UI_Descriptor* const descriptor,
         return bridge;
     }
 
-    uint32_t msg_type;
-    uint64_t window_id;
-    if (ipc_server_wait_secs(bridge->ipc, 5) &&
-        ipc_server_read(bridge->ipc, &msg_type, sizeof(uint32_t)) && msg_type == lv2ui_message_window_id &&
-        ipc_server_read(bridge->ipc, &window_id, sizeof(uint64_t)))
+    while (ipc_server_wait_secs(bridge->ipc, 1) && lv2ui_idle(bridge) == 0 && !bridge->window_ok) {}
+
+    if (bridge->window_ok)
     {
-        *widget = (LV2UI_Widget)window_id;
+        *widget = (LV2UI_Widget)bridge->window_id;
         return bridge;
     }
 
-    fprintf(stderr, "[lv2-gtk-ui-bridge] ipc_server_create failed\n");
+    fprintf(stderr, "[lv2-gtk-ui-bridge] ipc_server_start failed to fetch initial response\n");
     ipc_server_stop(bridge->ipc);
     free(bridge);
     return NULL;
@@ -208,7 +212,7 @@ static int lv2ui_idle(const LV2UI_Handle ui)
 
                     if (buffer == NULL)
                     {
-                        fprintf(stderr, "lv2ui out of memory, abort!\n");
+                        fprintf(stderr, "lv2ui server out of memory, abort!\n");
                         return 1;
                     }
                 }
@@ -221,9 +225,15 @@ static int lv2ui_idle(const LV2UI_Handle ui)
                     continue;
                 }
             }
+            else if (msg_type == lv2ui_message_window_id &&
+                     ipc_server_read(bridge->ipc, &bridge->window_id, sizeof(uint64_t)))
+            {
+                bridge->window_ok = true;
+                continue;
+            }
         }
 
-        fprintf(stderr, "lv2ui ringbuffer data race, abort!\n");
+        fprintf(stderr, "lv2ui server ringbuffer data race, abort!\n");
         return 1;
     }
 

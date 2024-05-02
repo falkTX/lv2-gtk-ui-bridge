@@ -194,7 +194,7 @@ static int lv2ui_idle(void* const ptr)
 
                     if (buffer == NULL)
                     {
-                        fprintf(stderr, "lv2ui out of memory, abort!\n");
+                        fprintf(stderr, "lv2ui client out of memory, abort!\n");
                         abort();
                     }
                 }
@@ -209,7 +209,7 @@ static int lv2ui_idle(void* const ptr)
             }
         }
 
-        fprintf(stderr, "lv2ui ringbuffer data race, abort!\n");
+        fprintf(stderr, "lv2ui client ringbuffer data race, abort!\n");
         abort();
     }
 
