@@ -34,7 +34,7 @@
 #define IPC_SHM_NAME_SIZE 32
 
 typedef struct {
-    void* ptr;
+    uint8_t* ptr;
    #ifdef _WIN32
     HANDLE handle;
    #else
@@ -45,7 +45,7 @@ typedef struct {
 } ipc_shm_server_t;
 
 typedef struct {
-    void* ptr;
+    uint8_t* ptr;
    #ifdef _WIN32
     HANDLE handle;
    #else

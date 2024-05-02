@@ -1,9 +1,9 @@
 
 CFLAGS += -std=c11
 
-# CFLAGS  += $(shell pkg-config --cflags jack lilv-0 lv2) -fPIC
-# LDFLAGS += $(shell pkg-config --libs jack lilv-0 lv2)
-# LDFLAGS += -Wl,-no-undefined -ldl
+CFLAGS  += $(shell pkg-config --cflags lilv-0 lv2) -fPIC
+LDFLAGS += $(shell pkg-config --libs lilv-0 lv2)
+LDFLAGS += -Wl,-no-undefined -ldl
 
 all: build
 

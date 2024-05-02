@@ -28,6 +28,12 @@ void ipc_ring_init(ipc_ring_t* ring, uint32_t size)
 }
 
 static inline
+uint32_t ipc_ring_read_size(const ipc_ring_t* ring)
+{
+    return 0;
+}
+
+static inline
 bool ipc_ring_read(ipc_ring_t* ring, void* dst, uint32_t size)
 {
     return false;
