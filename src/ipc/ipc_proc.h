@@ -147,7 +147,12 @@ bool ipc_proc_is_running(ipc_proc_t* const proc)
     if (WaitForSingleObject(proc->process.hProcess, 0) == WAIT_FAILED)
     {
         const PROCESS_INFORMATION oprocess = proc->process;
-        proc->process = { INVALID_HANDLE_VALUE, INVALID_HANDLE_VALUE, 0, 0 };
+        proc->process = (PROCESS_INFORMATION){
+            .hProcess = INVALID_HANDLE_VALUE,
+            .hThread = INVALID_HANDLE_VALUE,
+            .dwProcessId = 0,
+            .dwThreadId = 0,
+        };
         CloseHandle(oprocess.hThread);
         CloseHandle(oprocess.hProcess);
         return false;

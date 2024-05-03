@@ -96,7 +96,7 @@ bool ipc_shm_server_create(ipc_shm_server_t* const shm, const char* const name, 
     __ipc_shm_name(shmname, name);
 
    #ifdef _WIN32
-    const SECURITY_ATTRIBUTES sa = { sizeof(sa), NULL, TRUE };
+    SECURITY_ATTRIBUTES sa = { .nLength = sizeof(sa), .lpSecurityDescriptor = NULL, .bInheritHandle = TRUE };
     shm->handle = CreateFileMappingA(INVALID_HANDLE_VALUE, &sa, PAGE_READWRITE|SEC_COMMIT, 0, (DWORD)size, shmname);
     if (shm->handle == NULL)
     {
@@ -104,7 +104,7 @@ bool ipc_shm_server_create(ipc_shm_server_t* const shm, const char* const name, 
         return false;
     }
 
-    shm->ptr = MapViewOfFile(shm->handle, FILE_MAP_ALL_ACCESS, 0, 0, size);
+    shm->ptr = (uint8_t*)MapViewOfFile(shm->handle, FILE_MAP_ALL_ACCESS, 0, 0, size);
     if (shm->ptr == NULL)
     {
         fprintf(stderr, "[ipc] MapViewOfFile failed\n");
@@ -191,7 +191,7 @@ bool ipc_shm_client_attach(ipc_shm_client_t* const shm, const char* const name, 
         return false;
     }
 
-    shm->ptr = (SharedData*)MapViewOfFile(shm->handle, FILE_MAP_ALL_ACCESS, 0, 0, fullDataSize);
+    shm->ptr = (uint8_t*)MapViewOfFile(shm->handle, FILE_MAP_ALL_ACCESS, 0, 0, size);
     if (shm->ptr == NULL)
     {
         fprintf(stderr, "[ipc] MapViewOfFile failed\n");

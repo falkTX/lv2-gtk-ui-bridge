@@ -107,11 +107,12 @@ static LV2UI_Handle lv2ui_instantiate(const LV2UI_Descriptor* const descriptor,
     // convert parent window id into a string
 
     char wid[24] = { 0 };
-    snprintf(wid, sizeof(wid) - 1, "%lu", (unsigned long)parent);
+    snprintf(wid, sizeof(wid) - 1, "%llu", (unsigned long long)parent);
 
     // ----------------------------------------------------------------------------------------------------------------
     // unset known problematic env vars
 
+   #ifdef __linux__
     char* old_ld_preload = getenv("LD_PRELOAD");
     if (old_ld_preload != NULL)
     {
@@ -125,6 +126,7 @@ static LV2UI_Handle lv2ui_instantiate(const LV2UI_Descriptor* const descriptor,
         old_ld_library_path = strdup(old_ld_library_path);
         unsetenv("LD_LIBRARY_PATH");
     }
+   #endif
 
     // ----------------------------------------------------------------------------------------------------------------
     // start IPC server
@@ -136,6 +138,7 @@ static LV2UI_Handle lv2ui_instantiate(const LV2UI_Descriptor* const descriptor,
     // ----------------------------------------------------------------------------------------------------------------
     // cleanup
 
+   #ifdef __linux__
     if (old_ld_preload != NULL)
     {
         setenv("LD_PRELOAD", old_ld_preload, 1);
@@ -147,6 +150,7 @@ static LV2UI_Handle lv2ui_instantiate(const LV2UI_Descriptor* const descriptor,
         setenv("LD_LIBRARY_PATH", old_ld_library_path, 1);
         free(old_ld_library_path);
     }
+   #endif
 
     free(bridge_tool_path);
 

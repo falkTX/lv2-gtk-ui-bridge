@@ -3,6 +3,13 @@
 
 #include "ipc/ipc.h"
 
+#ifdef _WIN32
+static void sleep(int secs)
+{
+    Sleep(secs * 1000);
+}
+#endif
+
 int main(int argc, char* argv[])
 {
     if (argc == 1)

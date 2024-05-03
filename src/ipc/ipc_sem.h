@@ -76,8 +76,8 @@ bool ipc_sem_create(ipc_sem_t* const sem)
     // nothing to do
     return true;
    #elif defined(_WIN32)
-    const SECURITY_ATTRIBUTES sa = { sizeof(sa), NULL, TRUE };
-    return (*sem = CreateSemaphoreA(&sa, 0, MAX_LONG, NULL)) != NULL;
+    SECURITY_ATTRIBUTES sa = { .nLength = sizeof(sa), .lpSecurityDescriptor = NULL, .bInheritHandle = TRUE };
+    return (*sem = CreateSemaphoreA(&sa, 0, LONG_MAX, NULL)) != NULL;
    #else
     if (sem_init(sem, 1, 0) == 0)
         return true;
