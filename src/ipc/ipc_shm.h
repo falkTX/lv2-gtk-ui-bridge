@@ -16,8 +16,7 @@
 #endif
 
 #ifdef _WIN32
- #include <winsock2.h>
- #include <windows.h>
+ #include "ipc_win32.h"
 #else
  #ifdef __cplusplus
   #include <cerrno>
@@ -58,7 +57,7 @@ static inline
 void __ipc_shm_name(char shmname[IPC_SHM_NAME_SIZE], const char* const name)
 {
    #ifdef _WIN32
-    snprintf(shmname, IPC_SHM_NAME_SIZE - 1, "Local\\", name);
+    snprintf(shmname, IPC_SHM_NAME_SIZE - 1, "Local\\%s", name);
    #else
     snprintf(shmname, IPC_SHM_NAME_SIZE - 1, "/%s", name);
    #endif
@@ -92,7 +91,7 @@ bool ipc_shm_server_check(const char* const name)
 static inline
 bool ipc_shm_server_create(ipc_shm_server_t* const shm, const char* const name, const uint32_t size, const bool memlock)
 {
-    char shmname[IPC_SHM_NAME_SIZE] = {};
+    char shmname[IPC_SHM_NAME_SIZE] = { 0 };
     __ipc_shm_name(shmname, name);
 
    #ifdef _WIN32
@@ -100,14 +99,14 @@ bool ipc_shm_server_create(ipc_shm_server_t* const shm, const char* const name, 
     shm->handle = CreateFileMappingA(INVALID_HANDLE_VALUE, &sa, PAGE_READWRITE|SEC_COMMIT, 0, (DWORD)size, shmname);
     if (shm->handle == NULL)
     {
-        fprintf(stderr, "[ipc] CreateFileMapping failed\n");
+        fprintf(stderr, "[ipc] CreateFileMapping failed: %s\n", StrError(GetLastError()));
         return false;
     }
 
     shm->ptr = (uint8_t*)MapViewOfFile(shm->handle, FILE_MAP_ALL_ACCESS, 0, 0, size);
     if (shm->ptr == NULL)
     {
-        fprintf(stderr, "[ipc] MapViewOfFile failed\n");
+        fprintf(stderr, "[ipc] MapViewOfFile failed: %s\n", StrError(GetLastError()));
         CloseHandle(shm->handle);
         return false;
     }
@@ -180,21 +179,21 @@ void ipc_shm_server_destroy(ipc_shm_server_t* const shm)
 static inline
 bool ipc_shm_client_attach(ipc_shm_client_t* const shm, const char* const name, const uint32_t size, const bool memlock)
 {
-    char shmname[IPC_SHM_NAME_SIZE] = {};
+    char shmname[IPC_SHM_NAME_SIZE] = { 0 };
     __ipc_shm_name(shmname, name);
 
    #ifdef _WIN32
     shm->handle = OpenFileMappingA(FILE_MAP_ALL_ACCESS, FALSE, shmname);
     if (shm->handle == NULL)
     {
-        fprintf(stderr, "[ipc] OpenFileMapping failed\n");
+        fprintf(stderr, "[ipc] OpenFileMapping failed: %s\n", StrError(GetLastError()));
         return false;
     }
 
     shm->ptr = (uint8_t*)MapViewOfFile(shm->handle, FILE_MAP_ALL_ACCESS, 0, 0, size);
     if (shm->ptr == NULL)
     {
-        fprintf(stderr, "[ipc] MapViewOfFile failed\n");
+        fprintf(stderr, "[ipc] MapViewOfFile failed: %s\n", StrError(GetLastError()));
         CloseHandle(shm->handle);
         return false;
     }

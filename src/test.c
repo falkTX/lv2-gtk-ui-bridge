@@ -1,14 +1,10 @@
 // Copyright 2024 Filipe Coelho <falktx@falktx.com>
 // SPDX-License-Identifier: ISC
 
-#include "ipc/ipc.h"
+#define DEBUG
+#undef NDEBUG
 
-#ifdef _WIN32
-static void sleep(int secs)
-{
-    Sleep(secs * 1000);
-}
-#endif
+#include "ipc/ipc.h"
 
 int main(int argc, char* argv[])
 {

@@ -16,8 +16,7 @@
 #endif
 
 #ifdef _WIN32
- #include <winsock2.h>
- #include <windows.h>
+ #include "ipc_win32.h"
 #else
  #ifdef __cplusplus
   #include <cerrno>
@@ -33,7 +32,7 @@
 
 typedef struct {
    #ifdef _WIN32
-    PROCESS_INFORMATION process;
+    PROCESS_INFORMATION pinfo;
    #else
     pid_t pid;
    #endif
@@ -61,6 +60,64 @@ ipc_proc_t* ipc_proc_start(const char* const args[])
     }
 
    #ifdef _WIN32
+    size_t cmdlen = 1;
+    for (int i = 0; args[i] != NULL; ++i)
+    {
+        cmdlen += strlen(args[i]) + 1;
+
+        if (strchr(args[i], ' ') != NULL)
+            cmdlen += 2;
+    }
+
+    wchar_t* const cmd = malloc(sizeof(wchar_t) * cmdlen);
+    if (cmd == NULL)
+    {
+        fprintf(stderr, "[ipc] ipc_proc_start failed: out of memory\n");
+        free(proc);
+        return NULL;
+    }
+
+    wchar_t* cmdptr = cmd;
+    for (int i = 0; args[i] != NULL; ++i)
+    {
+        const bool quoted = args[i][0] != '"' && strchr(args[i], ' ') != NULL;
+
+        if (i != 0)
+            *cmdptr++ = L' ';
+
+        if (quoted)
+            *cmdptr++ = L'"';
+
+        const DWORD wrtn = MultiByteToWideChar(CP_UTF8, 0, args[i], -1, cmdptr, cmdlen - (cmdptr - cmd) / sizeof(wchar_t));
+        if (wrtn <= 0)
+        {
+            fprintf(stderr, "[ipc] ipc_proc_start failed: %s\n", StrError(GetLastError()));
+            free(cmd);
+            free(proc);
+            return NULL;
+        }
+
+        cmdptr += wrtn - 1;
+
+        if (quoted)
+            *cmdptr++ = L'"';
+    }
+
+    *cmdptr = 0;
+
+    fprintf(stderr, "[ipc] ipc_proc_start trying to launch '%ls'\n", cmd);
+
+    STARTUPINFOW si = { .cb = sizeof(si) };
+    if (CreateProcessW(NULL, cmd, NULL, NULL, TRUE, /*CREATE_NO_WINDOW*/ 0, NULL, NULL, &si, &proc->pinfo) == FALSE)
+    {
+        fprintf(stderr, "[ipc] ipc_proc_start failed: %s\n", StrError(GetLastError()));
+        free(cmd);
+        free(proc);
+        return NULL;
+    }
+
+    free(cmd);
+    return proc;
    #else
     const pid_t pid = vfork();
 
@@ -89,7 +146,44 @@ ipc_proc_t* ipc_proc_start(const char* const args[])
 static inline
 void ipc_proc_stop(ipc_proc_t* const proc)
 {
+    bool should_terminate = true;
+
    #ifdef _WIN32
+    if (proc->pinfo.hProcess == INVALID_HANDLE_VALUE)
+    {
+        free(proc);
+        return;
+    }
+
+    const PROCESS_INFORMATION opinfo = proc->pinfo;
+    proc->pinfo = (PROCESS_INFORMATION){
+        .hProcess = INVALID_HANDLE_VALUE,
+        .hThread = INVALID_HANDLE_VALUE,
+        .dwProcessId = 0,
+        .dwThreadId = 0,
+    };
+    free(proc);
+
+    for (DWORD exit_code;;)
+    {
+        if (GetExitCodeProcess(opinfo.hProcess, &exit_code) == FALSE ||
+            exit_code != STILL_ACTIVE ||
+            WaitForSingleObject(opinfo.hProcess, 0) != WAIT_TIMEOUT)
+        {
+            CloseHandle(opinfo.hThread);
+            CloseHandle(opinfo.hProcess);
+            return;
+        }
+
+        if (should_terminate)
+        {
+            should_terminate = false;
+            TerminateProcess(opinfo.hProcess, ERROR_BROKEN_PIPE);
+        }
+
+        Sleep(5);
+        continue;
+    }
    #else
     if (proc->pid <= 0)
     {
@@ -100,7 +194,7 @@ void ipc_proc_stop(ipc_proc_t* const proc)
     const pid_t opid = proc->pid;
     free(proc);
 
-    for (bool should_terminate = true;;)
+    for (;;)
     {
         const pid_t ret = waitpid(opid, NULL, WNOHANG);
 
@@ -141,20 +235,23 @@ static inline
 bool ipc_proc_is_running(ipc_proc_t* const proc)
 {
    #ifdef _WIN32
-    if (proc->process.hProcess == INVALID_HANDLE_VALUE)
+    if (proc->pinfo.hProcess == INVALID_HANDLE_VALUE)
         return false;
 
-    if (WaitForSingleObject(proc->process.hProcess, 0) == WAIT_FAILED)
+    DWORD exit_code;
+    if (GetExitCodeProcess(proc->pinfo.hProcess, &exit_code) == FALSE ||
+        exit_code != STILL_ACTIVE ||
+        WaitForSingleObject(proc->pinfo.hProcess, 0) != WAIT_TIMEOUT)
     {
-        const PROCESS_INFORMATION oprocess = proc->process;
-        proc->process = (PROCESS_INFORMATION){
+        const PROCESS_INFORMATION opinfo = proc->pinfo;
+        proc->pinfo = (PROCESS_INFORMATION){
             .hProcess = INVALID_HANDLE_VALUE,
             .hThread = INVALID_HANDLE_VALUE,
             .dwProcessId = 0,
             .dwThreadId = 0,
         };
-        CloseHandle(oprocess.hThread);
-        CloseHandle(oprocess.hProcess);
+        CloseHandle(opinfo.hThread);
+        CloseHandle(opinfo.hProcess);
         return false;
     }
    #else

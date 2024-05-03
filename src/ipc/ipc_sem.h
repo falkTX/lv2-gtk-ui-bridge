@@ -38,20 +38,7 @@
  #include <linux/futex.h>
  #include <sys/time.h>
 #elif defined(_WIN32)
- #ifndef NOMINMAX
-  #define NOMINMAX
- #endif
- #ifndef NOKERNEL
-  #define NOKERNEL
- #endif
- #ifndef NOSERVICE
-  #define NOSERVICE
- #endif
- #ifndef WIN32_LEAN_AND_MEAN
-  #define WIN32_LEAN_AND_MEAN
- #endif
- #include <winsock2.h>
- #include <windows.h>
+ #include "ipc_win32.h"
 #else
  #ifdef __cplusplus
   #include <ctime>
@@ -137,7 +124,7 @@ bool ipc_sem_wait_secs(ipc_sem_t* const sem, const uint32_t secs)
                 return false;
     }
    #elif defined(_WIN32)
-    return WaitForSingleObject(sem, secs * 1000) == WAIT_OBJECT_0;
+    return WaitForSingleObject(*sem, secs * 1000) == WAIT_OBJECT_0;
    #else
     struct timespec timeout;
     if (clock_gettime(CLOCK_REALTIME, &timeout) != 0)
