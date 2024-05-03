@@ -5,6 +5,10 @@
 
 #ifdef _WIN32
 
+#ifndef __cplusplus
+ #define thread_local _Thread_local
+#endif
+
 #ifndef NOMINMAX
  #define NOMINMAX
 #endif
@@ -21,12 +25,6 @@
 #include <windows.h>
 
 static inline
-void sleep(const unsigned int secs)
-{
-    Sleep(secs * 1000);
-}
-
-static inline
 const char* StrError(const DWORD error)
 {
     wchar_t* msg;
@@ -36,8 +34,8 @@ const char* StrError(const DWORD error)
     if (msglen < 3)
         return NULL;
 
-    static _Thread_local char* _last_error = NULL;
-    _last_error = realloc(_last_error, msglen + 1);
+    static thread_local char* _last_error = NULL;
+    _last_error = (char*)realloc(_last_error, msglen + 1);
 
     if (_last_error != NULL && WideCharToMultiByte(CP_UTF8, 0, msg, msglen, _last_error, msglen, NULL, NULL))
     {

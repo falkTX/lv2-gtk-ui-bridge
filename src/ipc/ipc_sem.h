@@ -60,7 +60,7 @@ static inline
 bool ipc_sem_create(ipc_sem_t* const sem)
 {
    #if defined(__APPLE__) || defined(__linux__)
-    // nothing to do
+    (void)sem;
     return true;
    #elif defined(_WIN32)
     SECURITY_ATTRIBUTES sa = { .nLength = sizeof(sa), .lpSecurityDescriptor = NULL, .bInheritHandle = TRUE };
@@ -77,7 +77,7 @@ static inline
 void ipc_sem_destroy(ipc_sem_t* const sem)
 {
    #if defined(__APPLE__) || defined(__linux__)
-    // nothing to do
+    (void)sem;
    #elif defined(_WIN32)
     CloseHandle(*sem);
    #else

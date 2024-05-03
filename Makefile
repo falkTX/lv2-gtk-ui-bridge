@@ -20,10 +20,10 @@ lv2-gtk-ui-bridge.lv2/lv2-gtk3-ui-bridge: src/ui-client.c src/ipc/*.h
 	$(CC) $< $(CFLAGS) $(LDFLAGS) $(shell pkg-config --cflags --libs gtk+-3.0 lilv-0 lv2 x11) -DUI_GTK3 -ldl -lrt -Wno-deprecated-declarations -o $@
 
 test: src/test.c src/ipc/*.h
-	$(CC) $< $(CFLAGS) $(LDFLAGS) -o $@
+	$(CC) $< $(CFLAGS) $(LDFLAGS) -Wall -Wextra -o $@
 
 testxx: src/test.c src/ipc/*.h
-	$(CXX) $< $(CXXFLAGS) $(LDFLAGS) -o $@
+	$(CXX) $< $(CXXFLAGS) $(LDFLAGS) -Wall -Wextra -o $@
 
 clean:
 	rm -f $(TARGETS)

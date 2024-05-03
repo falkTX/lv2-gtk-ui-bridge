@@ -4,10 +4,12 @@
 #pragma once
 
 #ifdef __cplusplus
+ #define IPC_STRUCT_INIT {}
  #include <cstdint>
  #include <cstdio>
  #include <cstdlib>
 #else
+ #define IPC_STRUCT_INIT { 0 }
  #define _GNU_SOURCE
  #include <stdbool.h>
  #include <stdint.h>
@@ -69,7 +71,7 @@ ipc_proc_t* ipc_proc_start(const char* const args[])
             cmdlen += 2;
     }
 
-    wchar_t* const cmd = malloc(sizeof(wchar_t) * cmdlen);
+    wchar_t* const cmd = (wchar_t*)malloc(sizeof(wchar_t) * cmdlen);
     if (cmd == NULL)
     {
         fprintf(stderr, "[ipc] ipc_proc_start failed: out of memory\n");
@@ -107,7 +109,8 @@ ipc_proc_t* ipc_proc_start(const char* const args[])
 
     fprintf(stderr, "[ipc] ipc_proc_start trying to launch '%ls'\n", cmd);
 
-    STARTUPINFOW si = { .cb = sizeof(si) };
+    STARTUPINFOW si = IPC_STRUCT_INIT;
+    si.cb = sizeof(si);
     if (CreateProcessW(NULL, cmd, NULL, NULL, TRUE, /*CREATE_NO_WINDOW*/ 0, NULL, NULL, &si, &proc->pinfo) == FALSE)
     {
         fprintf(stderr, "[ipc] ipc_proc_start failed: %s\n", StrError(GetLastError()));

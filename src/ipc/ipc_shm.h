@@ -4,10 +4,12 @@
 #pragma once
 
 #ifdef __cplusplus
+ #define IPC_STRUCT_INIT {}
  #include <cstddef>
  #include <cstdint>
  #include <cstdio>
 #else
+ #define IPC_STRUCT_INIT { 0 }
  #define _GNU_SOURCE
  #include <stdbool.h>
  #include <stddef.h>
@@ -91,7 +93,7 @@ bool ipc_shm_server_check(const char* const name)
 static inline
 bool ipc_shm_server_create(ipc_shm_server_t* const shm, const char* const name, const uint32_t size, const bool memlock)
 {
-    char shmname[IPC_SHM_NAME_SIZE] = { 0 };
+    char shmname[IPC_SHM_NAME_SIZE] = IPC_STRUCT_INIT;
     __ipc_shm_name(shmname, name);
 
    #ifdef _WIN32
@@ -179,7 +181,7 @@ void ipc_shm_server_destroy(ipc_shm_server_t* const shm)
 static inline
 bool ipc_shm_client_attach(ipc_shm_client_t* const shm, const char* const name, const uint32_t size, const bool memlock)
 {
-    char shmname[IPC_SHM_NAME_SIZE] = { 0 };
+    char shmname[IPC_SHM_NAME_SIZE] = IPC_STRUCT_INIT;
     __ipc_shm_name(shmname, name);
 
    #ifdef _WIN32
