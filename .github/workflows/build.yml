@@ -48,4 +48,4 @@ jobs:
         CXXFLAGS: -Werror
       run: |
         make clean >/dev/null
-        make testxx -j $(nproc) && ./test
+        make testxx -j $(nproc) && ./testxx
