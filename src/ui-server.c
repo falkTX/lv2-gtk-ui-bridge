@@ -218,66 +218,71 @@ static int lv2ui_idle(const LV2UI_Handle ui)
         if (ipc_server_read(bridge->ipc, &msg_type, sizeof(uint32_t)))
         {
             uint32_t port_index, buffer_size, port_protocol;
-            // TODO use switch case
-            if (msg_type == lv2ui_message_port_event &&
-                ipc_server_read(bridge->ipc, &port_index, sizeof(uint32_t)) &&
-                ipc_server_read(bridge->ipc, &buffer_size, sizeof(uint32_t)) &&
-                ipc_server_read(bridge->ipc, &port_protocol, sizeof(uint32_t)))
+            switch (msg_type)
             {
-                if (buffer_size > size)
+            case lv2ui_message_port_event:
+                if (ipc_server_read(bridge->ipc, &port_index, sizeof(uint32_t)) &&
+                    ipc_server_read(bridge->ipc, &buffer_size, sizeof(uint32_t)) &&
+                    ipc_server_read(bridge->ipc, &port_protocol, sizeof(uint32_t)))
                 {
-                    size = buffer_size;
-                    buffer = realloc(buffer, buffer_size);
-
-                    if (buffer == NULL)
+                    if (buffer_size > size)
                     {
-                        fprintf(stderr, "lv2ui server out of memory, abort!\n");
-                        return 1;
+                        size = buffer_size;
+                        buffer = realloc(buffer, buffer_size);
+
+                        if (buffer == NULL)
+                        {
+                            fprintf(stderr, "lv2ui server out of memory, abort!\n");
+                            return 1;
+                        }
+                    }
+
+                    if (ipc_server_read(bridge->ipc, buffer, buffer_size))
+                    {
+                        if (bridge->write_function != NULL)
+                            bridge->write_function(bridge->controller, port_index, buffer_size, port_protocol, buffer);
+
+                        continue;
                     }
                 }
-
-                if (ipc_server_read(bridge->ipc, buffer, buffer_size))
+                break;
+            case lv2ui_message_urid_map_req:
+                if (ipc_server_read(bridge->ipc, &buffer_size, sizeof(uint32_t)))
                 {
-                    if (bridge->write_function != NULL)
-                        bridge->write_function(bridge->controller, port_index, buffer_size, port_protocol, buffer);
-
-                    continue;
-                }
-            }
-            else if (msg_type == lv2ui_message_urid_map_req &&
-                     ipc_server_read(bridge->ipc, &buffer_size, sizeof(uint32_t)))
-            {
-                if (buffer_size > size)
-                {
-                    size = buffer_size;
-                    buffer = realloc(buffer, buffer_size);
-
-                    if (buffer == NULL)
+                    if (buffer_size > size)
                     {
-                        fprintf(stderr, "lv2ui server out of memory, abort!\n");
-                        return 1;
+                        size = buffer_size;
+                        buffer = realloc(buffer, buffer_size);
+
+                        if (buffer == NULL)
+                        {
+                            fprintf(stderr, "lv2ui server out of memory, abort!\n");
+                            return 1;
+                        }
+                    }
+
+                    if (ipc_server_read(bridge->ipc, buffer, buffer_size))
+                    {
+                        const uint32_t urid = bridge->urid_map->map(bridge->urid_map->handle, buffer);
+
+                        const uint32_t msg_type = lv2ui_message_urid_map_resp;
+                        ipc_server_write(bridge->ipc, &msg_type, sizeof(uint32_t)) &&
+                        ipc_server_write(bridge->ipc, &urid, sizeof(uint32_t)) &&
+                        ipc_server_write(bridge->ipc, &buffer_size, sizeof(uint32_t)) &&
+                        ipc_server_write(bridge->ipc, buffer, buffer_size);
+                        ipc_server_commit(bridge->ipc);
+
+                        continue;
                     }
                 }
-
-                if (ipc_server_read(bridge->ipc, buffer, buffer_size))
+                break;
+            case lv2ui_message_window_id:
+                if (ipc_server_read(bridge->ipc, &bridge->window_id, sizeof(uint64_t)))
                 {
-                    const uint32_t urid = bridge->urid_map->map(bridge->urid_map->handle, buffer);
-
-                    const uint32_t msg_type = lv2ui_message_urid_map_resp;
-                    ipc_server_write(bridge->ipc, &msg_type, sizeof(uint32_t)) &&
-                    ipc_server_write(bridge->ipc, &urid, sizeof(uint32_t)) &&
-                    ipc_server_write(bridge->ipc, &buffer_size, sizeof(uint32_t)) &&
-                    ipc_server_write(bridge->ipc, buffer, buffer_size);
-                    ipc_server_commit(bridge->ipc);
-
+                    bridge->window_ok = true;
                     continue;
                 }
-            }
-            else if (msg_type == lv2ui_message_window_id &&
-                     ipc_server_read(bridge->ipc, &bridge->window_id, sizeof(uint64_t)))
-            {
-                bridge->window_ok = true;
-                continue;
+                break;
             }
         }
 

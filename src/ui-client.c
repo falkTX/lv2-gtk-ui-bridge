@@ -4,7 +4,7 @@
 #include "ui-base.h"
 
 #include <dlfcn.h>
-// TODO use C11 threads
+// NOTE cannot use C11 threads as it very poorly supported
 #include <pthread.h>
 
 #include <gtk/gtk.h>
@@ -209,57 +209,61 @@ static int lv2ui_idle(void* const ptr)
         if (ipc_client_read(bridge->ipc, &msg_type, sizeof(uint32_t)))
         {
             uint32_t port_index, buffer_size, format;
-            // TODO use switch case
-            if (msg_type == lv2ui_message_port_event &&
-                ipc_client_read(bridge->ipc, &port_index, sizeof(uint32_t)) &&
-                ipc_client_read(bridge->ipc, &buffer_size, sizeof(uint32_t)) &&
-                ipc_client_read(bridge->ipc, &format, sizeof(uint32_t)))
+            switch (msg_type)
             {
-                if (buffer_size > size)
+            case lv2ui_message_port_event:
+                if (ipc_client_read(bridge->ipc, &port_index, sizeof(uint32_t)) &&
+                    ipc_client_read(bridge->ipc, &buffer_size, sizeof(uint32_t)) &&
+                    ipc_client_read(bridge->ipc, &format, sizeof(uint32_t)))
                 {
-                    size = buffer_size;
-                    buffer = realloc(buffer, buffer_size);
-
-                    if (buffer == NULL)
+                    if (buffer_size > size)
                     {
-                        fprintf(stderr, "lv2ui client out of memory, abort!\n");
-                        abort();
+                        size = buffer_size;
+                        buffer = realloc(buffer, buffer_size);
+
+                        if (buffer == NULL)
+                        {
+                            fprintf(stderr, "lv2ui client out of memory, abort!\n");
+                            abort();
+                        }
+                    }
+
+                    if (ipc_client_read(bridge->ipc, buffer, buffer_size))
+                    {
+                        if (bridge->uiobj->desc->port_event != NULL)
+                            bridge->uiobj->desc->port_event(bridge->uihandle, port_index, buffer_size, format, buffer);
+
+                        continue;
                     }
                 }
-
-                if (ipc_client_read(bridge->ipc, buffer, buffer_size))
+                break;
+            case lv2ui_message_urid_map_resp:
+                if (ipc_client_read(bridge->ipc, &port_index, sizeof(uint32_t)) &&
+                    ipc_client_read(bridge->ipc, &buffer_size, sizeof(uint32_t)))
                 {
-                    if (bridge->uiobj->desc->port_event != NULL)
-                        bridge->uiobj->desc->port_event(bridge->uihandle, port_index, buffer_size, format, buffer);
-
-                    continue;
-                }
-            }
-            else if (msg_type == lv2ui_message_urid_map_resp &&
-                ipc_client_read(bridge->ipc, &port_index, sizeof(uint32_t)) &&
-                ipc_client_read(bridge->ipc, &buffer_size, sizeof(uint32_t)))
-            {
-                if (buffer_size > size)
-                {
-                    size = buffer_size;
-                    buffer = realloc(buffer, buffer_size);
-
-                    if (buffer == NULL)
+                    if (buffer_size > size)
                     {
-                        fprintf(stderr, "lv2ui client out of memory, abort!\n");
-                        abort();
+                        size = buffer_size;
+                        buffer = realloc(buffer, buffer_size);
+
+                        if (buffer == NULL)
+                        {
+                            fprintf(stderr, "lv2ui client out of memory, abort!\n");
+                            abort();
+                        }
+                    }
+
+                    if (ipc_client_read(bridge->ipc, buffer, buffer_size))
+                    {
+                        lv2ui_uris_add(&bridge->uiuris, port_index, buffer);
+
+                        if (bridge->uiuris.waiting_uri != NULL && strcmp(bridge->uiuris.waiting_uri, buffer) == 0)
+                            bridge->uiuris.waiting_uri = NULL;
+
+                        continue;
                     }
                 }
-
-                if (ipc_client_read(bridge->ipc, buffer, buffer_size))
-                {
-                    lv2ui_uris_add(&bridge->uiuris, port_index, buffer);
-
-                    if (bridge->uiuris.waiting_uri != NULL && strcmp(bridge->uiuris.waiting_uri, buffer) == 0)
-                        bridge->uiuris.waiting_uri = NULL;
-
-                    continue;
-                }
+                break;
             }
         }
 
