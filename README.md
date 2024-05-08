@@ -5,7 +5,12 @@ lv2-gtk-ui-bridge is a special LV2 bundle that allows to use legacy LV2 Gtk2/3 U
 This increases the compatibility of such UIs to hosts that do not support the legacy UI types.
 
 Because Gtk2/3 can often conflict with host function symbols (e.g. a Gtk4 host can't load Gtk3 libraries) the UI is loaded in a separate process.  
-This means it is not possible to support LV2 instance access nor LV2 data access, which some UIs use for fancy fast graphs.
+This means the UI can load without crashing the host if usually there would be function symbol conflicts,
+but in return it is not possible to support LV2 instance access nor LV2 data access (which some UIs use for fancy fast graphs).
+
+The list of supported plugins is hardcoded in [lv2-gtk-ui-bridge.lv2/manifest.ttl](lv2-gtk-ui-bridge.lv2/manifest.ttl).  
+This file needs to be updated in order to support more plugins with a Gtk2/3-based UI.  
+Just create a ticket or a pull request in case I missed any.
 
 ![Screenshot](Screenshot.png)
 
