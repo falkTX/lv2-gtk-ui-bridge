@@ -58,10 +58,10 @@ lv2-gtk-ui-bridge.lv2/lv2-gtk3-ui-bridge$(APP_EXT): src/ui-client.c src/ipc/*.h
 # ---------------------------------------------------------------------------------------------------------------------
 
 test: src/test.c src/ipc/*.h
-	$(CC) $< $(CFLAGS) $(LDFLAGS) -Wall -Wextra -o $@$(APP_EXT)
+	$(CC) $< $(CFLAGS) $(LDFLAGS) $(SHM_LIBS) -o $@$(APP_EXT)
 
 testxx: src/test.c src/ipc/*.h
-	$(CXX) $< $(CXXFLAGS) $(LDFLAGS) -Wall -Wextra -o $@$(APP_EXT)
+	$(CXX) $< $(CXXFLAGS) $(LDFLAGS) $(SHM_LIBS) -o $@$(APP_EXT)
 
 clean:
 	rm -f $(TARGETS) test testxx *.exe
