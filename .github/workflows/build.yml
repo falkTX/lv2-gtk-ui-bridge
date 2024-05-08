@@ -49,3 +49,38 @@ jobs:
       run: |
         make clean >/dev/null
         make testxx -j $(nproc) && ./testxx
+
+  macos:
+    strategy:
+      matrix:
+        target:
+            - macos-12
+            - macos-13
+            - macos-14
+    runs-on: ${{ matrix.target }}
+    steps:
+    - uses: actions/checkout@v4
+    - name: Set up dependencies
+      run: |
+        brew install gtk+ gtk+3 lilv make pkg-config
+    - name: Regular build
+      env:
+        CFLAGS: -Werror
+        CXXFLAGS: -Werror
+      run: |
+        make clean >/dev/null
+        make -j $(sysctl -n hw.logicalcpu)
+    - name: Run tests (C)
+      env:
+        CFLAGS: -Werror
+        CXXFLAGS: -Werror
+      run: |
+        make clean >/dev/null
+        make test -j $(sysctl -n hw.logicalcpu) && ./test
+    - name: Run tests (C++)
+      env:
+        CFLAGS: -Werror
+        CXXFLAGS: -Werror
+      run: |
+        make clean >/dev/null
+        make testxx -j $(sysctl -n hw.logicalcpu) && ./testxx

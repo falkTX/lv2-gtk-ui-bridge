@@ -373,9 +373,11 @@ int main(int argc, char* argv[])
     const long long winId = wid != NULL ? atoll(wid) : 0;
 
     // create plug window
-    GtkWidget* const window = winId != 0
-                            ? gtk_plug_new(winId)
-                            : gtk_window_new(GTK_WINDOW_TOPLEVEL);
+    GtkWidget* const window =
+       #ifndef __APPLE__
+        winId != 0 ? gtk_plug_new(winId) :
+       #endif
+        gtk_window_new(GTK_WINDOW_TOPLEVEL);
 
     if (window == NULL)
     {
@@ -416,6 +418,7 @@ int main(int argc, char* argv[])
     // handle any pending events before showing window
     lv2ui_idle(&bridge);
 
+   #ifndef __APPLE__
     if (winId != 0)
     {
         gtk_widget_show_all(window);
@@ -440,7 +443,9 @@ int main(int argc, char* argv[])
             ipc_client_commit(bridge.ipc);
         }
     }
-    else if (shm == NULL)
+    else
+   #endif
+    if (shm == NULL)
     {
         g_signal_connect(G_OBJECT(window), "destroy", G_CALLBACK(gtk_main_quit), NULL);
         gtk_widget_show_all(window);

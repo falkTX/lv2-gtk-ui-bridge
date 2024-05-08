@@ -22,6 +22,8 @@ endif
 TARGET_MACHINE := $(shell $(CC) -dumpmachine)
 
 ifneq (,$(findstring apple,$(TARGET_MACHINE)))
+CFLAGS += -Wno-deprecated-declarations
+CXXFLAGS += -Wno-deprecated -Wno-deprecated-declarations
 SERVER_FLAGS = -fPIC -dynamiclib
 else ifneq (,$(findstring mingw,$(TARGET_MACHINE)))
 APP_EXT = .exe
@@ -30,7 +32,7 @@ CXXFLAGS += -mstackrealign
 LDFLAGS += -static
 SERVER_FLAGS = -shared -Wl,-no-undefined
 else
-CLIENT_FLAGS = $(shell pkg-config --cflags --libs x11) -ldl
+CLIENT_FLAGS = -ldl
 SERVER_FLAGS = -fPIC -shared -Wl,-no-undefined
 SHM_LIBS = -lrt
 endif
@@ -50,10 +52,10 @@ lv2-gtk-ui-bridge.lv2/lv2-gtk-ui-bridge.so: src/ui-server.c src/ipc/*.h
 	$(CC) $< $(CFLAGS) $(LDFLAGS) $(LV2_FLAGS) $(SERVER_FLAGS) $(SHM_LIBS) -o $@
 
 lv2-gtk-ui-bridge.lv2/lv2-gtk2-ui-bridge$(APP_EXT): src/ui-client.c src/ipc/*.h
-	$(CC) $< $(CFLAGS) $(LDFLAGS) $(LV2_FLAGS) $(shell pkg-config --cflags --libs gtk+-2.0 lilv-0) -DUI_GTK2 $(CLIENT_FLAGS) $(SHM_LIBS) -Wno-deprecated-declarations -o $@
+	$(CC) $< $(CFLAGS) $(LDFLAGS) $(LV2_FLAGS) $(shell pkg-config --cflags --libs gtk+-2.0 lilv-0 x11) -DUI_GTK2 $(CLIENT_FLAGS) $(SHM_LIBS) -Wno-deprecated-declarations -o $@
 
 lv2-gtk-ui-bridge.lv2/lv2-gtk3-ui-bridge$(APP_EXT): src/ui-client.c src/ipc/*.h
-	$(CC) $< $(CFLAGS) $(LDFLAGS) $(LV2_FLAGS) $(shell pkg-config --cflags --libs gtk+-3.0 lilv-0) -DUI_GTK3 $(CLIENT_FLAGS) $(SHM_LIBS) -Wno-deprecated-declarations -o $@
+	$(CC) $< $(CFLAGS) $(LDFLAGS) $(LV2_FLAGS) $(shell pkg-config --cflags --libs gtk+-3.0 lilv-0 x11) -DUI_GTK3 $(CLIENT_FLAGS) $(SHM_LIBS) -Wno-deprecated-declarations -o $@
 
 # ---------------------------------------------------------------------------------------------------------------------
 
