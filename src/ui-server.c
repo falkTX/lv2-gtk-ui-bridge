@@ -24,7 +24,6 @@ static LV2UI_Handle lv2ui_instantiate(const LV2UI_Descriptor* const descriptor,
                                       LV2UI_Widget* const widget,
                                       const LV2_Feature* const* const features)
 {
-    // TODO idle feature
     // TODO log feature
 
     // ----------------------------------------------------------------------------------------------------------------
@@ -107,6 +106,7 @@ static LV2UI_Handle lv2ui_instantiate(const LV2UI_Descriptor* const descriptor,
     // convert parent window id into a string
 
     char wid[24] = { 0 };
+    // FIXME hexa
     snprintf(wid, sizeof(wid) - 1, "%llu", (unsigned long long)parent);
 
     // ----------------------------------------------------------------------------------------------------------------
@@ -215,10 +215,10 @@ static int lv2ui_idle(const LV2UI_Handle ui)
     while (ipc_server_read_size(bridge->ipc) != 0)
     {
         uint32_t msg_type = lv2ui_message_null;
-        uint32_t port_index, buffer_size, port_protocol;
-
         if (ipc_server_read(bridge->ipc, &msg_type, sizeof(uint32_t)))
         {
+            uint32_t port_index, buffer_size, port_protocol;
+            // TODO use switch case
             if (msg_type == lv2ui_message_port_event &&
                 ipc_server_read(bridge->ipc, &port_index, sizeof(uint32_t)) &&
                 ipc_server_read(bridge->ipc, &buffer_size, sizeof(uint32_t)) &&

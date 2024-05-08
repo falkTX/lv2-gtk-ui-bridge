@@ -4,6 +4,7 @@
 #include "ui-base.h"
 
 #include <dlfcn.h>
+// TODO use C11 threads
 #include <pthread.h>
 
 #include <gtk/gtk.h>
@@ -210,6 +211,7 @@ static int lv2ui_idle(void* const ptr)
         if (ipc_client_read(bridge->ipc, &msg_type, sizeof(uint32_t)))
         {
             uint32_t port_index, buffer_size, format;
+            // TODO use switch case
             if (msg_type == lv2ui_message_port_event &&
                 ipc_client_read(bridge->ipc, &port_index, sizeof(uint32_t)) &&
                 ipc_client_read(bridge->ipc, &buffer_size, sizeof(uint32_t)) &&
@@ -316,6 +318,11 @@ static void* lv2ui_thread_run(void* const ptr)
     return NULL;
 }
 
+static void signal_handler(int)
+{
+    gtk_main_quit();
+}
+
 int main(int argc, char* argv[])
 {
     if (! gtk_init_check(&argc, &argv))
@@ -329,6 +336,12 @@ int main(int argc, char* argv[])
         fprintf(stderr, "usage: %s <lv2-uri> [shm-access-key] [x11-ui-parent]\n", argv[0]);
         return 1;
     }
+
+    struct sigaction sig = { 0 };
+    sig.sa_handler = signal_handler;
+    sig.sa_flags = SA_RESTART;
+    sigemptyset(&sig.sa_mask);
+    sigaction(SIGTERM, &sig, NULL);
 
     const char* const uri = argv[1];
     const char* const shm = argc == 4 ? argv[2] : NULL;
