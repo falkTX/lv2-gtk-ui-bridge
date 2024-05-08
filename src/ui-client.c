@@ -318,9 +318,12 @@ static void* lv2ui_thread_run(void* const ptr)
     return NULL;
 }
 
-static void signal_handler(int)
+static void signal_handler(const int sig)
 {
     gtk_main_quit();
+
+    // unused
+    (void)sig;
 }
 
 int main(int argc, char* argv[])
