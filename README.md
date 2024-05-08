@@ -44,4 +44,4 @@ Install
 
 After a successful build, simply copy or symlink the `lv2-gtk-ui-bridge.lv2` bundle into any direction within the `LV2_PATH`, for example `~/.lv2/`.
 
-No that there is no `make install` step, you can easily just copy the bundle yourself.
+Note that there is no `make install` step, you can easily just copy the bundle yourself.
