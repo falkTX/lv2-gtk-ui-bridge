@@ -1,0 +1,51 @@
+name: makefile
+
+on:
+  push:
+    branches:
+      - '*'
+  pull_request:
+    branches:
+      - '*'
+env:
+  DEBIAN_FRONTEND: noninteractive
+
+jobs:
+  linux:
+    strategy:
+      matrix:
+        container:
+            - debian:12
+            - ubuntu:20.04
+            - ubuntu:22.04
+            - ubuntu:24.04
+    runs-on: ubuntu-latest
+    container:
+      image: ${{ matrix.container }}
+    steps:
+    - uses: actions/checkout@v4
+    - name: Set up dependencies
+      run: |
+        apt-get update -qq
+        apt-get install -yqq gcc libgtk2.0-dev libgtk-3-dev liblilv-dev lv2-dev libx11-dev make pkg-config
+    - name: Regular build
+      env:
+        CFLAGS: -Werror
+        CXXFLAGS: -Werror
+      run: |
+        make clean >/dev/null
+        make -j $(nproc)
+    - name: Run tests (C)
+      env:
+        CFLAGS: -Werror
+        CXXFLAGS: -Werror
+      run: |
+        make clean >/dev/null
+        make test -j $(nproc) && ./test
+    - name: Run tests (C++)
+      env:
+        CFLAGS: -Werror
+        CXXFLAGS: -Werror
+      run: |
+        make clean >/dev/null
+        make testxx -j $(nproc) && ./test

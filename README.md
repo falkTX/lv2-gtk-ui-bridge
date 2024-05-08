@@ -25,8 +25,13 @@ To build this project the following libraries/packages are required:
 Under Debian-based systems these can be installed with:
 
 ```sh
-sudo apt-get install libgtk2.0-dev libgtk-3-dev liblilv-dev lv2-dev libx11-dev
+sudo apt-get install libgtk2.0-dev libgtk-3-dev liblilv-dev lv2-dev libx11-dev make pkg-config
 ```
+
+Build
+-----
+
+After dependencies are installed simply run `make` in the directory where this project source code is located.
 
 Install
 -------
