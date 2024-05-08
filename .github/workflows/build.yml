@@ -7,7 +7,10 @@ on:
   pull_request:
     branches:
       - '*'
+
 env:
+  CFLAGS: -Werror
+  CXXFLAGS: -Werror
   DEBIAN_FRONTEND: noninteractive
 
 jobs:
@@ -15,40 +18,45 @@ jobs:
     strategy:
       matrix:
         container:
-            - debian:12
-            - ubuntu:20.04
-            - ubuntu:22.04
-            - ubuntu:24.04
+            - name: debian-11
+              target: debian:11
+            - name: debian-12
+              target: debian:12
+            - name: ubuntu-20.04
+              target: ubuntu:20.04
+            - name: ubuntu-22.04
+              target: ubuntu:22.04
+            - name: ubuntu-24.04
+              target: ubuntu:24.04
     runs-on: ubuntu-latest
     container:
-      image: ${{ matrix.container }}
+      image: ${{ matrix.container.target }}
     steps:
     - uses: actions/checkout@v4
     - name: Set up dependencies
       run: |
         apt-get update -qq
         apt-get install -yqq g++ libgtk2.0-dev libgtk-3-dev liblilv-dev lv2-dev libx11-dev make pkg-config
-    - name: Regular build
-      env:
-        CFLAGS: -Werror
-        CXXFLAGS: -Werror
-      run: |
-        make clean >/dev/null
-        make -j $(nproc)
     - name: Run tests (C)
-      env:
-        CFLAGS: -Werror
-        CXXFLAGS: -Werror
       run: |
         make clean >/dev/null
         make test -j $(nproc) && ./test
     - name: Run tests (C++)
-      env:
-        CFLAGS: -Werror
-        CXXFLAGS: -Werror
       run: |
         make clean >/dev/null
         make testxx -j $(nproc) && ./testxx
+    - name: Regular build
+      run: |
+        make clean >/dev/null
+        make -j $(nproc)
+    - name: Set sha8
+      run: |
+        echo "SHA8=$(echo ${{ github.sha }} | cut -c1-8)" >> $GITHUB_ENV
+    - uses: actions/upload-artifact@v4
+      with:
+        name: ${{ github.event.repository.name }}-${{ matrix.container.name }}-${{ github.event.pull_request.number || env.SHA8 }}
+        path: |
+          *.lv2
 
   macos:
     strategy:
@@ -63,24 +71,23 @@ jobs:
     - name: Set up dependencies
       run: |
         brew install gtk+ gtk+3 lilv make pkg-config
-    - name: Regular build
-      env:
-        CFLAGS: -Werror
-        CXXFLAGS: -Werror
-      run: |
-        make clean >/dev/null
-        make -j $(sysctl -n hw.logicalcpu)
     - name: Run tests (C)
-      env:
-        CFLAGS: -Werror
-        CXXFLAGS: -Werror
       run: |
         make clean >/dev/null
         make test -j $(sysctl -n hw.logicalcpu) && ./test
     - name: Run tests (C++)
-      env:
-        CFLAGS: -Werror
-        CXXFLAGS: -Werror
       run: |
         make clean >/dev/null
         make testxx -j $(sysctl -n hw.logicalcpu) && ./testxx
+    - name: Regular build
+      run: |
+        make clean >/dev/null
+        make -j $(sysctl -n hw.logicalcpu)
+    - name: Set sha8
+      run: |
+        echo "SHA8=$(echo ${{ github.sha }} | cut -c1-8)" >> $GITHUB_ENV
+    - uses: actions/upload-artifact@v4
+      with:
+        name: ${{ github.event.repository.name }}-${{ matrix.target }}-${{ github.event.pull_request.number || env.SHA8 }}
+        path: |
+          *.lv2
