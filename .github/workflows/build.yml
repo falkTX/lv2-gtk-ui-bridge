@@ -9,8 +9,8 @@ on:
       - '*'
 
 env:
-  CFLAGS: -Werror
-  CXXFLAGS: -Werror
+  CFLAGS: -Werror -O2
+  CXXFLAGS: -Werror -O2
   DEBIAN_FRONTEND: noninteractive
 
 jobs:

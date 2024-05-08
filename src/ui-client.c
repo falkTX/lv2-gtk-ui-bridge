@@ -177,8 +177,6 @@ static void lv2ui_uris_cleanup(LV2UI_URIs* const uiuris)
 {
     for (uint32_t i = 0; i < uiuris->max_urid; ++i)
         free(uiuris->uris[i]);
-
-    free(uiuris);
 }
 
 static void lv2ui_write_function(LV2UI_Controller controller,

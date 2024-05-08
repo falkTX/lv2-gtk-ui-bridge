@@ -54,7 +54,7 @@ ipc_proc_t* ipc_proc_start(const char* const args[])
    #endif
    */
 
-    ipc_proc_t* const proc = (ipc_proc_t*)calloc(1, sizeof(ipc_proc_t));
+    ipc_proc_t* volatile const proc = (ipc_proc_t*)calloc(1, sizeof(ipc_proc_t));
     if (proc == NULL)
     {
         fprintf(stderr, "[ipc] ipc_proc_start failed: out of memory\n");
