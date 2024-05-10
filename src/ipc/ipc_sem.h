@@ -3,6 +3,10 @@
 
 #pragma once
 
+#ifndef IPC_LOG_NAME
+ #define IPC_LOG_NAME "ipc"
+#endif
+
 #ifdef __cplusplus
  #include <cstddef>
  #include <cstdint>
@@ -68,7 +72,7 @@ bool ipc_sem_create(ipc_sem_t* const sem)
    #else
     if (sem_init(sem, 1, 0) == 0)
         return true;
-    fprintf(stderr, "[ipc] sem_init failed: %s\n", strerror(errno));
+    fprintf(stderr, "[" IPC_LOG_NAME "] sem_init failed: %s\n", strerror(errno));
     return false;
    #endif
 }

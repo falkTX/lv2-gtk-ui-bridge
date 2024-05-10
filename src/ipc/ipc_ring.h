@@ -3,6 +3,10 @@
 
 #pragma once
 
+#ifndef IPC_LOG_NAME
+ #define IPC_LOG_NAME "ipc"
+#endif
+
 #ifdef __cplusplus
  #include <cassert>
  #include <cstdint>
@@ -69,7 +73,7 @@ bool ipc_ring_read(ipc_ring_t* ring, void* dst, uint32_t size)
         if ((ring->flags & ipc_ring_flag_error_reading) == 0)
         {
             ring->flags |= ipc_ring_flag_error_reading;
-            fprintf(stderr, "[ipc] ipc_ring_read failed: not enough space\n");
+            fprintf(stderr, "[" IPC_LOG_NAME "] ipc_ring_read failed: not enough space\n");
         }
         return false;
     }
@@ -122,7 +126,7 @@ bool ipc_ring_write(ipc_ring_t* ring, const void* src, uint32_t size)
         if ((ring->flags & ipc_ring_flag_error_writing) == 0)
         {
             ring->flags |= ipc_ring_flag_error_writing;
-            fprintf(stderr, "[ipc] ipc_ring_write failed: not enough space\n");
+            fprintf(stderr, "[" IPC_LOG_NAME "] ipc_ring_write failed: not enough space\n");
         }
         ring->flags |= ipc_ring_flag_invalidate_commit;
         return false;

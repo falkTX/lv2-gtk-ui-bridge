@@ -3,6 +3,10 @@
 
 #pragma once
 
+#ifndef IPC_LOG_NAME
+ #define IPC_LOG_NAME "ipc"
+#endif
+
 #include "ipc_proc.h"
 #include "ipc_ring.h"
 #include "ipc_sem.h"
@@ -115,7 +119,7 @@ ipc_server_t* ipc_server_start(const char* args[], const char* const name, const
     ipc_server_t* const server = (ipc_server_t*)calloc(1, sizeof(ipc_server_t));
     if (server == NULL)
     {
-        fprintf(stderr, "[ipc] ipc_process_start failed: out of memory\n");
+        fprintf(stderr, "[" IPC_LOG_NAME "] ipc_process_start failed: out of memory\n");
         return NULL;
     }
 
@@ -123,7 +127,7 @@ ipc_server_t* ipc_server_start(const char* args[], const char* const name, const
 
     if (! ipc_shm_server_create(&server->shm, name, shared_data_size, false))
     {
-        fprintf(stderr, "[ipc] ipc_process_start failed: could not create shared memory segment\n");
+        fprintf(stderr, "[" IPC_LOG_NAME "] ipc_process_start failed: could not create shared memory segment\n");
         free(server);
         return NULL;
     }
@@ -139,7 +143,7 @@ ipc_server_t* ipc_server_start(const char* args[], const char* const name, const
 
     if (! ipc_sem_create(&shared_data->sem_server))
     {
-        fprintf(stderr, "[ipc] ipc_sem_create failed\n");
+        fprintf(stderr, "[" IPC_LOG_NAME "] ipc_sem_create failed\n");
         ipc_shm_server_destroy(&server->shm);
         free(server);
         return NULL;
@@ -147,7 +151,7 @@ ipc_server_t* ipc_server_start(const char* args[], const char* const name, const
 
     if (! ipc_sem_create(&shared_data->sem_client))
     {
-        fprintf(stderr, "[ipc] ipc_sem_create failed\n");
+        fprintf(stderr, "[" IPC_LOG_NAME "] ipc_sem_create failed\n");
         ipc_sem_destroy(&shared_data->sem_server);
         ipc_shm_server_destroy(&server->shm);
         free(server);
@@ -170,7 +174,7 @@ ipc_server_t* ipc_server_start(const char* args[], const char* const name, const
             return server;
     }
 
-    fprintf(stderr, "[ipc] client side failed to start\n");
+    fprintf(stderr, "[" IPC_LOG_NAME "] client side failed to start\n");
     ipc_server_stop(server);
     return NULL;
 }
@@ -240,7 +244,7 @@ ipc_client_t* ipc_client_attach(const char* const name, const uint32_t rbsize)
 
     if (client == NULL)
     {
-        fprintf(stderr, "[ipc] ipc_client_attach failed: out of memory\n");
+        fprintf(stderr, "[" IPC_LOG_NAME "] ipc_client_attach failed: out of memory\n");
         return NULL;
     }
 
@@ -248,7 +252,7 @@ ipc_client_t* ipc_client_attach(const char* const name, const uint32_t rbsize)
 
     if (! ipc_shm_client_attach(&client->shm, name, shared_data_size, false))
     {
-        fprintf(stderr, "[ipc] ipc_client_attach failed: could not attach shared memory segment\n");
+        fprintf(stderr, "[" IPC_LOG_NAME "] ipc_client_attach failed: could not attach shared memory segment\n");
         free(client);
         return NULL;
     }

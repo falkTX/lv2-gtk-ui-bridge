@@ -3,6 +3,10 @@
 
 #pragma once
 
+#ifndef IPC_LOG_NAME
+ #define IPC_LOG_NAME "ipc"
+#endif
+
 #ifdef __cplusplus
  #define IPC_STRUCT_INIT {}
  #include <cstddef>
@@ -101,14 +105,14 @@ bool ipc_shm_server_create(ipc_shm_server_t* const shm, const char* const name, 
     shm->handle = CreateFileMappingA(INVALID_HANDLE_VALUE, &sa, PAGE_READWRITE|SEC_COMMIT, 0, (DWORD)size, shmname);
     if (shm->handle == NULL)
     {
-        fprintf(stderr, "[ipc] CreateFileMapping failed: %s\n", StrError(GetLastError()));
+        fprintf(stderr, "[" IPC_LOG_NAME "] CreateFileMapping failed: %s\n", StrError(GetLastError()));
         return false;
     }
 
     shm->ptr = (uint8_t*)MapViewOfFile(shm->handle, FILE_MAP_ALL_ACCESS, 0, 0, size);
     if (shm->ptr == NULL)
     {
-        fprintf(stderr, "[ipc] MapViewOfFile failed: %s\n", StrError(GetLastError()));
+        fprintf(stderr, "[" IPC_LOG_NAME "] MapViewOfFile failed: %s\n", StrError(GetLastError()));
         CloseHandle(shm->handle);
         return false;
     }
@@ -119,13 +123,13 @@ bool ipc_shm_server_create(ipc_shm_server_t* const shm, const char* const name, 
     shm->fd = shm_open(shmname, O_CREAT|O_EXCL|O_RDWR, 0666);
     if (shm->fd < 0)
     {
-        fprintf(stderr, "[ipc] shm_open failed: %s\n", strerror(errno));
+        fprintf(stderr, "[" IPC_LOG_NAME "] shm_open failed: %s\n", strerror(errno));
         return false;
     }
 
     if (ftruncate(shm->fd, (off_t)size) != 0)
     {
-        fprintf(stderr, "[ipc] ftruncate failed: %s\n", strerror(errno));
+        fprintf(stderr, "[" IPC_LOG_NAME "] ftruncate failed: %s\n", strerror(errno));
         close(shm->fd);
         shm_unlink(shmname);
         return false;
@@ -147,7 +151,7 @@ bool ipc_shm_server_create(ipc_shm_server_t* const shm, const char* const name, 
 
     if (shm->ptr == NULL || shm->ptr == MAP_FAILED)
     {
-        fprintf(stderr, "[ipc] mmap failed: %s\n", strerror(errno));
+        fprintf(stderr, "[" IPC_LOG_NAME "] mmap failed: %s\n", strerror(errno));
         close(shm->fd);
         shm_unlink(shmname);
         return false;
@@ -188,14 +192,14 @@ bool ipc_shm_client_attach(ipc_shm_client_t* const shm, const char* const name, 
     shm->handle = OpenFileMappingA(FILE_MAP_ALL_ACCESS, FALSE, shmname);
     if (shm->handle == NULL)
     {
-        fprintf(stderr, "[ipc] OpenFileMapping failed: %s\n", StrError(GetLastError()));
+        fprintf(stderr, "[" IPC_LOG_NAME "] OpenFileMapping failed: %s\n", StrError(GetLastError()));
         return false;
     }
 
     shm->ptr = (uint8_t*)MapViewOfFile(shm->handle, FILE_MAP_ALL_ACCESS, 0, 0, size);
     if (shm->ptr == NULL)
     {
-        fprintf(stderr, "[ipc] MapViewOfFile failed: %s\n", StrError(GetLastError()));
+        fprintf(stderr, "[" IPC_LOG_NAME "] MapViewOfFile failed: %s\n", StrError(GetLastError()));
         CloseHandle(shm->handle);
         return false;
     }
@@ -206,7 +210,7 @@ bool ipc_shm_client_attach(ipc_shm_client_t* const shm, const char* const name, 
     shm->fd = shm_open(shmname, O_RDWR, 0);
     if (shm->fd < 0)
     {
-        fprintf(stderr, "[ipc] shm_open failed: %s\n", strerror(errno));
+        fprintf(stderr, "[" IPC_LOG_NAME "] shm_open failed: %s\n", strerror(errno));
         return false;
     }
 
@@ -226,7 +230,7 @@ bool ipc_shm_client_attach(ipc_shm_client_t* const shm, const char* const name, 
 
     if (shm->ptr == NULL || shm->ptr == MAP_FAILED)
     {
-        fprintf(stderr, "[ipc] mmap failed: %s\n", strerror(errno));
+        fprintf(stderr, "[" IPC_LOG_NAME "] mmap failed: %s\n", strerror(errno));
         close(shm->fd);
         return false;
     }

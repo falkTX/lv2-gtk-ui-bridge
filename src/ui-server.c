@@ -1,6 +1,7 @@
 // Copyright 2024 Filipe Coelho <falktx@falktx.com>
 // SPDX-License-Identifier: ISC
 
+#define IPC_LOG_NAME "ipc-server"
 #include "ui-base.h"
 
 #include <lv2/urid/urid.h>

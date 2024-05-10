@@ -3,6 +3,10 @@
 
 #pragma once
 
+#ifndef IPC_LOG_NAME
+ #define IPC_LOG_NAME "ipc"
+#endif
+
 #ifdef __cplusplus
  #define IPC_STRUCT_INIT {}
  #include <cstdint>
@@ -48,7 +52,7 @@ ipc_proc_t* ipc_proc_start(const char* const args[])
    #else
     if (access(args[0], X_OK) != 0)
     {
-        fprintf(stderr, "[ipc] cannot exec: %s\n", strerror(errno));
+        fprintf(stderr, "[" IPC_LOG_NAME "] cannot exec: %s\n", strerror(errno));
         return NULL;
     }
    #endif
@@ -57,7 +61,7 @@ ipc_proc_t* ipc_proc_start(const char* const args[])
     ipc_proc_t* volatile const proc = (ipc_proc_t*)calloc(1, sizeof(ipc_proc_t));
     if (proc == NULL)
     {
-        fprintf(stderr, "[ipc] ipc_proc_start failed: out of memory\n");
+        fprintf(stderr, "[" IPC_LOG_NAME "] ipc_proc_start failed: out of memory\n");
         return NULL;
     }
 
@@ -74,7 +78,7 @@ ipc_proc_t* ipc_proc_start(const char* const args[])
     wchar_t* const cmd = (wchar_t*)malloc(sizeof(wchar_t) * cmdlen);
     if (cmd == NULL)
     {
-        fprintf(stderr, "[ipc] ipc_proc_start failed: out of memory\n");
+        fprintf(stderr, "[" IPC_LOG_NAME "] ipc_proc_start failed: out of memory\n");
         free(proc);
         return NULL;
     }
@@ -93,7 +97,7 @@ ipc_proc_t* ipc_proc_start(const char* const args[])
         const DWORD wrtn = MultiByteToWideChar(CP_UTF8, 0, args[i], -1, cmdptr, cmdlen - (cmdptr - cmd) / sizeof(wchar_t));
         if (wrtn <= 0)
         {
-            fprintf(stderr, "[ipc] ipc_proc_start failed: %s\n", StrError(GetLastError()));
+            fprintf(stderr, "[" IPC_LOG_NAME "] ipc_proc_start failed: %s\n", StrError(GetLastError()));
             free(cmd);
             free(proc);
             return NULL;
@@ -107,7 +111,7 @@ ipc_proc_t* ipc_proc_start(const char* const args[])
 
     *cmdptr = 0;
 
-    fprintf(stderr, "[ipc] ipc_proc_start trying to launch '%ls'\n", cmd);
+    fprintf(stderr, "[" IPC_LOG_NAME "] ipc_proc_start trying to launch '%ls'\n", cmd);
 
     STARTUPINFOW si = IPC_STRUCT_INIT;
     si.cb = sizeof(si);
@@ -129,13 +133,13 @@ ipc_proc_t* ipc_proc_start(const char* const args[])
     // child process
     case 0:
         execvp(args[0], (char* const*)args);
-        fprintf(stderr, "[ipc] exec failed: %s\n", strerror(errno));
+        fprintf(stderr, "[" IPC_LOG_NAME "] exec failed: %s\n", strerror(errno));
         _exit(1);
         return NULL;
 
     // error
     case -1:
-        fprintf(stderr, "[ipc] vfork failed: %s\n", strerror(errno));
+        fprintf(stderr, "[" IPC_LOG_NAME "] vfork failed: %s\n", strerror(errno));
         free(proc);
         return NULL;
     }
@@ -228,7 +232,7 @@ void ipc_proc_stop(ipc_proc_t* const proc)
             break;
         }
 
-        fprintf(stderr, "[ipc] waitpid failed: %s\n", strerror(errno));
+        fprintf(stderr, "[" IPC_LOG_NAME "] waitpid failed: %s\n", strerror(errno));
         return;
     }
    #endif
